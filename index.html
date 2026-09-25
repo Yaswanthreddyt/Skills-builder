@@ -335,6 +335,9 @@ dialog::backdrop{background:rgba(8,14,20,.45);backdrop-filter:blur(2px);opacity:
 .privacy{display:flex;gap:12px;align-items:flex-start;background:var(--accent-soft);border-radius:var(--r-in);padding:15px 17px;margin:20px 0;font-size:14.5px}
 .privacy svg{flex:none;margin-top:2px}
 .acct-row{display:flex;gap:14px;align-items:center;margin:16px 0 20px}
+.profilecard{margin-bottom:26px}
+.profilecard .acct-row img{width:54px;height:54px;border-radius:50%}
+.avatar-fallback{width:54px;height:54px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;font-family:var(--head);font-size:22px;font-weight:700;flex:none}
 .acct-row img{width:54px;height:54px;border-radius:50%}
 #splash{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:var(--paper);transition:opacity .5s var(--ease)}
 #splash.gone{opacity:0;pointer-events:none}
@@ -1396,7 +1399,7 @@ function streakOf(plan) {
 const PLANE = `<svg viewBox="-4 -18 72 56" aria-hidden="true"><g transform="rotate(-14 30 10)"><path d="M0 10Q0 5 7 5L46 5Q58 5 62 10Q58 15 46 15L7 15Q0 15 0 10Z" fill="#fff" stroke="#9DBBE8" stroke-width="1.2"/><path d="M22 6L34 -14L41 -14L35 6Z" fill="#DCEBFF" stroke="#9DBBE8" stroke-width="1"/><path d="M22 14L34 34L41 34L35 14Z" fill="#DCEBFF" stroke="#9DBBE8" stroke-width="1"/><path d="M4 6L1 -4L8 -4L13 6Z" fill="#fff" stroke="#9DBBE8" stroke-width="1"/></g></svg>`;
 const ICONS = {
   runway: `<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13"/><path d="M6 9l6-6 6 6"/><path d="M6 20h12"/></svg>`,
-  cloud: `<svg width="26" height="20" viewBox="0 0 26 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><path d="M7.5 15.5h11a4 4 0 0 0 .6-7.95 5.5 5.5 0 0 0-10.6-1.9A4.5 4.5 0 0 0 7.5 15.5Z"/></svg>`,
+  cloud: `<svg width="28" height="20" viewBox="0 0 200 100" aria-hidden="true" style="color:var(--accent)"><use href="#cloudshape"/></svg>`,
   data: `<svg width="24" height="22" viewBox="0 0 24 22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19V13"/><path d="M10 19V7"/><path d="M17 19V3"/><path d="M3 9l7-4 7 4 5-3" stroke-opacity=".55"/></svg>`,
 };
 const WORLDS = {
@@ -1415,7 +1418,7 @@ const WORLDS = {
 };
 const PORTAL_ART = {
   runway: `<svg viewBox="0 0 200 64" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="200" height="64" fill="#EDEDFB"/><g fill="none" stroke="#5856D6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M100 12v40"/><path d="M84 28l16-16 16 16"/><path d="M74 52h52"/></g></svg>`,
-  cloud: `<svg viewBox="0 0 200 64" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="200" height="64" fill="#E4F0FF"/><g fill="none" stroke="#007AFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M62 44h84a15 15 0 0 0 2-29.8A20.5 20.5 0 0 0 108 7a17 17 0 0 0-32 6A17 17 0 0 0 62 44Z"/></g></svg>`,
+  cloud: `<svg viewBox="0 0 200 64" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="200" height="64" fill="#E4F0FF"/><use href="#cloudshape" x="55" y="10" width="90" height="42" style="color:#007AFF"/></svg>`,
   data: `<svg viewBox="0 0 200 64" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="200" height="64" fill="#DEF3F3"/><g fill="none" stroke="#0A8F92" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M64 50V36"/><path d="M92 50V22"/><path d="M120 50V10"/><path d="M64 26l28-12 28 12 20-10" stroke-opacity=".55"/></g></svg>`,
 };
 function heroArt(w) {
@@ -1644,7 +1647,7 @@ function renderHeader() {
   $("#top").className = "top" + (S.gate ? " gating" : "");
   $("#top").innerHTML = `<div class="wrap"><div class="brand">${ICONS[w]}<span>Runway</span><span class="world-tag">${W.name}</span></div>
     <nav class="tabs" role="tablist" aria-label="Sections">
-      <button class="tab" role="tab" data-act="tab" data-tab="roadmap" aria-selected="${S.tab === "roadmap"}">${W.L.tab}</button>
+      <button class="tab" role="tab" data-act="tab" data-tab="roadmap" aria-selected="${S.tab === "roadmap"}">Profile</button>
       <button class="tab" role="tab" data-act="tab" data-tab="library" aria-selected="${S.tab === "library"}">Library</button>
       <button class="tab" role="tab" data-act="tab" data-tab="certs" aria-selected="${S.tab === "certs"}">Certifications</button>
       <button class="tab" role="tab" data-act="tab" data-tab="apps" aria-selected="${S.tab === "apps"}">Applications ${urgent ? `<span class="badge">${urgent}</span>` : ""}</button>
@@ -1667,7 +1670,16 @@ function render() {
   if (S.tab === "roadmap" && !S.gate) { if (!S.plan || S.editing) wirePreview(); else runHero(); }
 }
 
-function roadmapView() { return !S.plan || S.editing ? builderView() : planView(S.plan); }
+function profileSummaryHTML() {
+  const name = (S.profile && S.profile.name) || (B.me && B.me.name) || "Guest";
+  const avatar = B.me && B.me.avatarUrl ? `<img src="${esc(B.me.avatarUrl)}" alt="">` : "";
+  const statusLine = B.mode === "cloud" ? "Signed in with claude.ai" : B.mode === "supabase" ? `Signed in${B.me && B.me.email ? " as " + esc(B.me.email) : ""}` : "Guest, not signed in";
+  const roleLine = S.plan ? `Learning ${esc(S.plan.tracks.map((t) => t.name).join(", "))}` : "No skill chosen yet";
+  return `<section class="card profilecard"><div class="acct-row" style="margin:0"><div class="avatar-fallback">${avatar || esc((name || "G")[0].toUpperCase())}</div>
+    <div><b style="font-size:20px">${esc(name)}</b><div class="muted small">${statusLine}</div><div class="muted small">${roleLine}</div></div></div>
+    <div class="actions" style="margin-top:16px"><button class="btn ghost sm" data-act="account">Account settings</button>${S.plan ? `<button class="btn ghost sm" data-act="edit-plan">${WORLDS[S.plan.world].L.edit}</button>` : ""}</div></section>`;
+}
+function roadmapView() { return `${profileSummaryHTML()}${!S.plan || S.editing ? builderView() : planView(S.plan)}`; }
 
 /* ----- builder ----- */
 function rolesHTML() {
