@@ -243,9 +243,45 @@ textarea{min-height:88px;resize:vertical}
 .sess-tag{display:inline-block;font-family:var(--head);font-weight:600;font-size:15px;background:var(--accent-soft);color:var(--accent);border-radius:7px;padding:2px 10px}
 .row-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
 .route{list-style:none;margin:0;padding:0;display:grid;gap:10px}
-.rt{display:grid;grid-template-columns:1fr auto;gap:9px 14px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:var(--r-card);padding:16px 18px;box-shadow:var(--shadow)}
-.rt .nm{font-family:var(--head);font-size:19px;font-weight:var(--hw);letter-spacing:-.01em}
-.rt .bar{grid-column:1/-1}.rt.finished{border-color:var(--good)}
+.route.timeline{position:relative;padding-left:26px;gap:16px}
+.route.timeline::before{content:"";position:absolute;left:9px;top:8px;bottom:8px;width:1.5px;background:var(--line)}
+.tl-node{position:relative;display:block;background:var(--card);border:1px solid var(--line);border-radius:var(--r-card);padding:14px 18px 16px;box-shadow:var(--shadow)}
+.tl-dot{position:absolute;left:-26px;top:20px;width:11px;height:11px;border-radius:50%;background:var(--line);border:2px solid var(--paper)}
+.tl-dot.lvl0{background:var(--bad)}.tl-dot.lvl1{background:var(--hi)}.tl-dot.lvl2{background:var(--accent)}.tl-dot.lvl3{background:var(--good)}
+.tl-node details summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.tl-node details summary::-webkit-details-marker{display:none}
+.tl-node .nm{font-family:var(--head);font-size:19px;font-weight:var(--hw);letter-spacing:-.01em}
+.tl-body{margin-top:4px}
+.tl-node .bar{margin-top:12px}
+.tl-node.finished{border-color:var(--good)}
+:root[data-world="data"] .tl-node .nm{font-family:var(--mono);font-size:17px;letter-spacing:-.02em}
+:root[data-world="data"] .tl-dot{border-radius:3px}
+
+/* ---------- skill check ---------- */
+.skillcheck-list{display:grid;gap:10px;margin-top:4px}
+.skrow{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
+.skname{font-size:14.5px;font-weight:600}
+.skpills{display:flex;gap:5px;flex-wrap:wrap}
+.skpill{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:5px 12px;font-size:12.5px;font-weight:600;color:var(--muted);transition:all .2s var(--ease)}
+.skpill[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+
+/* ---------- skill gap analysis ---------- */
+.gaplist{display:grid;gap:12px}
+.gaprow{display:grid;gap:6px}
+.gaphead{display:flex;justify-content:space-between;gap:12px;font-size:14.5px}
+.gapname{font-weight:600}
+.gaplabel{color:var(--muted);font-size:13px}
+.gaptrack{height:8px;border-radius:8px;background:var(--line);overflow:hidden}
+.gaptrack i{display:block;height:100%;background:var(--accent);border-radius:8px;transition:width .5s var(--ease)}
+.gaprow.big .gaptrack i{background:var(--bad)}
+.gaprow.big .gapname{color:var(--bad)}
+
+/* ---------- projects ---------- */
+.projgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.proj{display:flex;flex-direction:column}
+.proj.done{border-color:var(--good)}
+.projtop{display:flex;gap:8px;margin-bottom:8px}
+.proj h3{font-size:18px;letter-spacing:-.01em;margin-bottom:6px}
 .lvl{display:inline-block;font-size:12px;font-weight:700;border-radius:7px;padding:2px 9px;line-height:20px}
 .lvl-Start{background:var(--good-soft);color:var(--good)}.lvl-Next{background:var(--accent-soft);color:var(--accent)}.lvl-Advanced{background:var(--violet-soft);color:var(--violet)}
 
@@ -1209,6 +1245,10 @@ const mins = (m) => (m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? " " + (m % 60)
 const topicKey = (tp) => tp.track + "|" + tp.title;
 const PRIORITY = { 1: "Core", 2: "Important", 3: "Bonus" };
 const LEVELS = [{ id: "beginner", label: "Beginner", factor: 1 }, { id: "some", label: "Some experience", factor: 0.6 }, { id: "advanced", label: "Advanced", factor: 0.35 }];
+const SKILL_LEVELS = [{ id: 0, label: "New to this", short: "New" }, { id: 1, label: "Some exposure", short: "Some" }, { id: 2, label: "Comfortable", short: "Comfy" }, { id: 3, label: "Strong", short: "Strong" }];
+const GAP_FACTOR = [1, 0.7, 0.4, 0.15];
+const defaultSkillLevel = (overall) => (overall === "advanced" ? 2 : overall === "some" ? 1 : 0);
+const askey = (track, title) => track + "|" + title;
 const DAYS = [[1, "Mon"], [2, "Tue"], [3, "Wed"], [4, "Thu"], [5, "Fri"], [6, "Sat"], [0, "Sun"]];
 const getResArr = (k) => R[k];
 
@@ -1219,18 +1259,27 @@ function countStudyDays(start, end, studyDays) {
   return n;
 }
 
-function buildPlan({ goal, level, hoursPerWeek, targetDate, studyDays }) {
+function buildPlan({ goal, level, hoursPerWeek, targetDate, studyDays, assessment }) {
   const start = today();
   const end = parseISO(targetDate);
   const days = Math.max(1, daysBetween(start, end));
   const capacity = Math.max(1, countStudyDays(start, end, studyDays));
   const hpd = hoursPerWeek / studyDays.length;
   const slot = Math.max(20, Math.round((hpd * 60) / 5) * 5);
-  const factor = (LEVELS.find((l) => l.id === level) || LEVELS[0]).factor;
+  const fallbackLevel = defaultSkillLevel(level);
+  const skillOf = (track, title) => {
+    const v = assessment && assessment[askey(track, title)];
+    return v === 0 || v > 0 ? v : fallbackLevel;
+  };
 
   const tracks = expandGoal(goal);
   const all = [];
-  tracks.forEach((tr) => tr.topics.forEach((tp) => all.push({ ...tp, track: tr.name, hours: Math.max(2, Math.round(tp.hours * factor)) })));
+  const resolvedAssessment = {};
+  tracks.forEach((tr) => tr.topics.forEach((tp) => {
+    const lvl = skillOf(tr.name, tp.title);
+    resolvedAssessment[askey(tr.name, tp.title)] = lvl;
+    all.push({ ...tp, track: tr.name, skillLevel: lvl, hours: Math.max(2, Math.round(tp.hours * GAP_FACTOR[lvl])) });
+  }));
   const requiredHours = sum(all.map((x) => x.hours));
   const cost = (x) => Math.max(1, Math.ceil((x.hours * 60) / slot));
 
@@ -1249,7 +1298,7 @@ function buildPlan({ goal, level, hoursPerWeek, targetDate, studyDays }) {
     if (!chosen.has(i)) { dropped.push({ title: tp.title, track: tp.track, hours: tp.hours, priority: tp.priority }); return; }
     const total = Math.round(tp.hours * 60);
     const count = Math.max(1, Math.ceil(total / slot));
-    topics.push({ title: tp.title, track: tp.track, hours: tp.hours, priority: tp.priority, lesson: tp.lesson, ideas: tp.ideas, practice: tp.practice, res: tp.res.map((r) => (Array.isArray(r) ? r : getResArr(r))) });
+    topics.push({ title: tp.title, track: tp.track, hours: tp.hours, priority: tp.priority, lesson: tp.lesson, ideas: tp.ideas, practice: tp.practice, skillLevel: tp.skillLevel, res: tp.res.map((r) => (Array.isArray(r) ? r : getResArr(r))) });
     for (let n = 0; n < count; n++) {
       const m = n === count - 1 ? Math.max(15, total - slot * (count - 1)) : slot;
       sessions.push({ id: uid() + sessions.length, tk: tp.track + "|" + tp.title, n, of: count, minutes: m, doneOn: null, ck: {} });
@@ -1260,8 +1309,9 @@ function buildPlan({ goal, level, hoursPerWeek, targetDate, studyDays }) {
     id: uid(), createdAt: toISO(start),
     world: worldOf(tracks[0] ? tracks[0].name : ""),
     inputs: { goal: goal.trim(), level, hoursPerWeek, targetDate, studyDays },
+    assessment: resolvedAssessment,
     tracks: tracks.map((t) => ({ name: t.name, matched: t.matched })),
-    topics, dropped, sessions, checks: {},
+    topics, dropped, sessions, checks: {}, projects: [],
     requiredHours, compressed: scale < 1,
     plannedHours: sum(topics.map((t) => t.hours)),
     budgetHours: Math.round(capacity * hpd),
@@ -1285,6 +1335,23 @@ function schedule(plan) {
 }
 const topicOf = (plan, s) => plan.topics.find((t) => topicKey(t) === s.tk);
 const nextSession = (plan) => plan.sessions.find((s) => !s.doneOn);
+function projectsFor(plan) {
+  const topics = plan.topics;
+  if (!topics.length) return [];
+  const n = topics.length;
+  const cut1 = Math.max(1, Math.ceil(n / 3)), cut2 = Math.max(cut1 + 1, Math.ceil((2 * n) / 3));
+  const buckets = [topics.slice(0, cut1), topics.slice(cut1, cut2), topics.slice(cut2)].filter((b) => b.length);
+  const tierNames = ["Starter project", "Core project", "Capstone project"];
+  const roleName = plan.tracks[0] ? plan.tracks[0].name : "this path";
+  const doneMap = {}; (plan.projects || []).forEach((p) => (doneMap[p.id] = p.done));
+  return buckets.map((bucket, i) => {
+    const id = "proj-" + i;
+    const skills = bucket.map((t) => t.title);
+    const namePart = skills.length > 1 ? skills.slice(0, -1).join(", ") + " and " + skills[skills.length - 1] : skills[0];
+    const blurb = "Brings together " + namePart + ". " + bucket.map((t) => t.practice).join(" ");
+    return { id, tier: tierNames[i] || "Project " + (i + 1), title: roleName + ": " + (bucket[0] ? bucket[0].title : "project") + (bucket.length > 1 ? " and beyond" : ""), blurb, skills, done: !!doneMap[id] };
+  });
+}
 
 function tasksFor(plan, s) {
   const tp = topicOf(plan, s);
@@ -1381,7 +1448,7 @@ const S = {
   authMode: "signin", authErr: "", authMsg: "",
 };
 if (S.plan) { S.plan.checks = S.plan.checks || {}; S.plan.world = S.plan.world || worldOf(S.plan.tracks && S.plan.tracks[0] ? S.plan.tracks[0].name : ""); }
-const newDraft = () => ({ goal: "", level: "beginner", hours: (S.profile && S.profile.hours) || 8, date: toISO(addDays(today(), 84)), days: [1, 2, 3, 4, 5, 6] });
+const newDraft = () => ({ goal: "", level: "beginner", hours: (S.profile && S.profile.hours) || 8, date: toISO(addDays(today(), 84)), days: [1, 2, 3, 4, 5, 6], assessment: {} });
 S.draft = newDraft();
 if (S.profile && S.profile.world) S.bWorld = S.profile.world;
 
@@ -1611,6 +1678,20 @@ function rolesHTML() {
 function portalsHTML() {
   return ["runway", "cloud", "data"].map((k) => `<button type="button" class="portal" data-act="portal" data-v="${k}" aria-pressed="${S.bWorld === k}">${PORTAL_ART[k]}<b>${WORLDS[k].name}</b><span>${WORLDS[k].blurb}</span></button>`).join("");
 }
+function skillCheckHTML() {
+  const d = S.draft;
+  const goalStr = (d.goal || "").trim();
+  if (goalStr.length < 2) return "";
+  const parts = expandGoal(goalStr).filter((x) => x.matched);
+  if (parts.length !== 1) return `<p class="hint">Skill check works best with one role at a time. Pick a single path above to rate yourself topic by topic, or we'll use your overall answer for every topic.</p>`;
+  const tr = parts[0], fallback = defaultSkillLevel(d.level);
+  return `<div class="skillcheck-list">${tr.topics.map((tp) => {
+    const key = askey(tr.name, tp.title);
+    const cur = d.assessment[key] != null ? d.assessment[key] : fallback;
+    return `<div class="skrow"><span class="skname">${esc(tp.title)}</span><div class="skpills" role="radiogroup" aria-label="${esc(tp.title)} skill level">${SKILL_LEVELS.map((sl) => `<button type="button" class="skpill" data-act="skill-lvl" data-k="${esc(key)}" data-lvl="${sl.id}" aria-pressed="${cur === sl.id}">${sl.short}</button>`).join("")}</div></div>`;
+  }).join("")}</div>`;
+}
+function syncSkillCheck() { const el = $("#skillcheck"); if (el) el.innerHTML = skillCheckHTML(); }
 function builderView() {
   const d = S.draft, L = WORLDS[S.bWorld].L, minDate = toISO(addDays(today(), 7));
   return `${B.mode === "guest" ? `<div class="note"><b>Guest mode.</b> Your progress is saved in this browser only. Open Runway while signed in to claude.ai to keep it in a private, synced space.</div>` : ""}
@@ -1622,8 +1703,11 @@ function builderView() {
       <div class="field"><label class="lbl" for="goal">Role or skill</label>
         <input type="text" id="goal" name="goal" value="${esc(d.goal)}" placeholder="Choose above, or type your own" autocomplete="off">
         <div class="hint">Combine several with commas, for example "Python, SQL". The look of the site follows the role you pick.</div><div class="err" data-err="goal"></div></div>
-      <div class="field"><div class="lbl" id="lvl">Where are you today?</div>
+      <div class="field"><div class="lbl" id="lvl">Where are you today, overall?</div>
         <div class="chips" role="radiogroup" aria-labelledby="lvl">${LEVELS.map((l) => `<label class="radio-chip"><input type="radio" name="level" value="${l.id}" ${d.level === l.id ? "checked" : ""}><span>${l.label}</span></label>`).join("")}</div></div>
+      <div class="field"><div class="lbl">Quick skill check<span class="muted" style="font-weight:500"> (optional, topic by topic)</span></div>
+        <p class="hint" style="margin-top:0">Rate yourself on each part of the role. We'll spend more of your time on the gaps and go light on what you already know.</p>
+        <div id="skillcheck">${skillCheckHTML()}</div></div>
       <div class="row2">
         <div class="field"><label class="lbl" for="hours">Hours you can study each week</label><input type="number" id="hours" name="hours" min="1" max="80" step="0.5" value="${d.hours}" inputmode="decimal"><div class="err" data-err="hours"></div></div>
         <div class="field"><label class="lbl" for="date">Be ready by</label><input type="date" id="date" name="date" value="${d.date}" min="${minDate}"><div class="err" data-err="date"></div></div></div>
@@ -1648,11 +1732,11 @@ function setBuilderWorld(w) {
 function readDraft() {
   const f = $("#plan-form"); if (!f) return;
   const v = Object.fromEntries(new FormData(f).entries());
-  S.draft = { goal: v.goal || "", level: v.level || "beginner", hours: v.hours === undefined ? S.draft.hours : v.hours, date: v.date || "", days: [...f.querySelectorAll('input[name="days"]:checked')].map((x) => +x.value) };
+  S.draft = { goal: v.goal || "", level: v.level || "beginner", hours: v.hours === undefined ? S.draft.hours : v.hours, date: v.date || "", days: [...f.querySelectorAll('input[name="days"]:checked')].map((x) => +x.value), assessment: S.draft.assessment || {} };
 }
 function draftParsed() {
   const d = S.draft;
-  return { goal: d.goal.trim(), level: d.level, hours: parseFloat(d.hours), date: parseISO(d.date), days: d.days };
+  return { goal: d.goal.trim(), level: d.level, hours: parseFloat(d.hours), date: parseISO(d.date), days: d.days, assessment: d.assessment || {} };
 }
 function updatePreview() {
   const el = $("#prev"); if (!el) return;
@@ -1660,7 +1744,7 @@ function updatePreview() {
   if (f.goal.length < 2 || !(f.hours > 0) || !f.date || daysBetween(today(), f.date) < 7 || !f.days.length) {
     el.innerHTML = `<p>Choose a path and fill in the form. Your plan appears here: topics covered, daily time and finish date.</p>`; return;
   }
-  const p = buildPlan({ goal: f.goal, level: f.level, hoursPerWeek: f.hours, targetDate: toISO(f.date), studyDays: f.days });
+  const p = buildPlan({ goal: f.goal, level: f.level, hoursPerWeek: f.hours, targetDate: toISO(f.date), studyDays: f.days, assessment: f.assessment });
   if (!p.topics.length) { el.innerHTML = `<p>That's too little time to fit even one topic. Add study hours, add study days, or choose a later date.</p>`; return; }
   schedule(p);
   const finish = p.sessions[p.sessions.length - 1].date, total = p.topics.length + p.dropped.length;
@@ -1672,6 +1756,25 @@ function updatePreview() {
 function wirePreview() { updatePreview(); }
 
 /* ----- plan / roadmap ----- */
+function gapAnalysisHTML(plan) {
+  const rows = [...plan.topics].sort((a, b) => (a.skillLevel ?? 0) - (b.skillLevel ?? 0));
+  return `<div class="gaplist">${rows.map((tp) => {
+    const lvl = tp.skillLevel ?? 0, gap = 3 - lvl, big = gap >= 2;
+    return `<div class="gaprow ${big ? "big" : ""}"><div class="gaphead"><span class="gapname">${esc(tp.title)}</span><span class="gaplabel">${esc(SKILL_LEVELS[lvl].label)}</span></div>
+      <div class="gaptrack"><i style="width:${Math.round((lvl / 3) * 100)}%"></i></div></div>`;
+  }).join("")}</div>
+  <p class="hint" style="margin-top:14px">Rows near the top are where you rated yourself lowest. Those topics got more study hours; anything you already called "Strong" got a light touch instead.</p>`;
+}
+function projectsHTML(plan) {
+  const projects = projectsFor(plan);
+  if (!projects.length) return "";
+  return `<div class="projgrid">${projects.map((p) => `<article class="card proj ${p.done ? "done" : ""}">
+    <div class="projtop"><span class="pill">${esc(p.tier)}</span>${p.done ? `<span class="pill" style="background:var(--good-soft);color:var(--good)">Built</span>` : ""}</div>
+    <h3>${esc(p.title)}</h3><p class="muted small" style="line-height:1.5">${esc(p.blurb)}</p>
+    <div class="chips" style="margin-top:10px">${p.skills.map((s) => `<span class="tag">${esc(s)}</span>`).join("")}</div>
+    <label class="ck" style="margin-top:14px"><input type="checkbox" data-act="toggle-project" data-id="${esc(p.id)}" ${p.done ? "checked" : ""}><span>Mark as built</span></label>
+  </article>`).join("")}</div>`;
+}
 function planView(plan) {
   const L = WORLDS[plan.world].L;
   const pace = paceInfo(plan), next = nextSession(plan);
@@ -1687,13 +1790,19 @@ function planView(plan) {
   <div class="stack"><section class="card" aria-label="${L.calTitle}"><h2>${L.calTitle}</h2><p class="muted small" style="margin:2px 0 14px">${L.calSub}</p>${calendarHTML(plan)}</section>
   <section class="card day ${dayAllDone(plan, S.sel) ? "isdone" : ""}" data-in="${dayIndex(plan, S.sel)}" aria-live="polite">${dayPanel(plan, S.sel)}</section></div>
   ${plan.world === "data" ? `<section class="card" style="margin-top:24px"><h2>Actual vs plan</h2><p class="muted small" style="margin:2px 0 10px">Cumulative study time. Dashed grey is the pace you need, blue is done, dotted orange is where you'll land at this pace.</p><div class="${still ? "still" : ""}">${burnup(plan)}</div></section>` : ""}
-  <section class="sect"><h2>${L.route}</h2><p class="lead">${plan.topics.length} topics in learning order. Open any topic to read its lesson and find resources.</p>
-    <ol class="route">${plan.topics.map((tp) => {
+  <section class="sect"><h2>Your skill gap</h2><p class="lead">Based on your skill check. This is what actually shaped the plan above.</p>${gapAnalysisHTML(plan)}</section>
+  <section class="sect"><h2>${L.route}</h2><p class="lead">${plan.topics.length} topics in learning order. Tap one to preview it inline, or open the full lesson.</p>
+    <ol class="route timeline">${plan.topics.map((tp) => {
       const ss = plan.sessions.filter((s) => s.tk === topicKey(tp)), d = ss.filter((s) => s.doneOn).length;
-      return `<li class="rt ${d === ss.length ? "finished" : ""}"><div><div class="nm">${esc(tp.title)}</div><div class="muted small">${esc(tp.track)} · ${tp.hours} hrs · ${PRIORITY[tp.priority]} · ${d}/${ss.length} ${L.sess.toLowerCase()}s</div></div>
-      <button class="btn ghost sm" data-act="lesson" data-tk="${esc(topicKey(tp))}">Lesson</button><div class="bar ${d === ss.length ? "done" : ""}"><i style="width:${Math.round((d / ss.length) * 100)}%"></i></div></li>`;
+      const lvl = tp.skillLevel ?? 0;
+      return `<li class="rt tl-node ${d === ss.length ? "finished" : ""}"><span class="tl-dot lvl${lvl}" title="${esc(SKILL_LEVELS[lvl].label)} going in" aria-hidden="true"></span>
+      <details><summary><div class="nm">${esc(tp.title)}</div><div class="muted small">${esc(tp.track)} · ${tp.hours} hrs · ${PRIORITY[tp.priority]} · ${d}/${ss.length} ${L.sess.toLowerCase()}s</div></summary>
+      <div class="tl-body"><p class="small" style="margin:10px 0">${esc(tp.lesson)}</p><div class="practice" style="margin-top:0"><b>Practice task</b><p>${esc(tp.practice)}</p></div>
+      <button class="btn ghost sm" style="margin-top:12px" data-act="lesson" data-tk="${esc(topicKey(tp))}">Open full lesson</button></div></details>
+      <div class="bar ${d === ss.length ? "done" : ""}"><i style="width:${Math.round((d / ss.length) * 100)}%"></i></div></li>`;
     }).join("")}</ol>
     ${plan.dropped.length ? `<h4>Left out for now</h4><p class="muted small">${plan.dropped.map((d) => `${esc(d.title)} (${d.hours} hrs)`).join(" · ")}. Add hours or move your date to fit them in.</p>` : ""}</section>
+  <section class="sect"><h2>Projects to build toward ${esc(plan.tracks[0] ? plan.tracks[0].name : "your goal")}</h2><p class="lead">Built from your own plan, roughly in the order you'll be ready for them.</p>${projectsHTML(plan)}</section>
   <section class="sect"><h2>Certifications to aim for</h2><p class="lead">Recognised credentials for your path, from free starters to advanced.</p>${certsBlock(plan.tracks.map((t) => t.name))}</section>
   <div class="actions"><button class="btn ghost" data-act="edit-plan">${L.edit}</button><button class="btn danger" data-act="new-roadmap">${S.confirm ? "Click again to delete this plan" : L.fresh}</button></div>`;
 }
@@ -2037,10 +2146,11 @@ const H = {
   portal: (el) => { readDraft(); setBuilderWorld(el.dataset.v); },
   "gate-world": (el) => { const n = $("#pname"); if (n) S.gateName = n.value; S.bWorld = el.dataset.v; render(); },
   "auth-toggle": () => { S.authMode = S.authMode === "signup" ? "signin" : "signup"; S.authErr = ""; render(); },
-  role: (el) => { const n = el.dataset.v; S.draft.goal = n; const g = $("#goal"); if (g) g.value = n; setBuilderWorld(worldOf(n)); $("#roles").innerHTML = rolesHTML(); updatePreview(); },
+  role: (el) => { const n = el.dataset.v; S.draft.goal = n; S.draft.assessment = {}; const g = $("#goal"); if (g) g.value = n; setBuilderWorld(worldOf(n)); $("#roles").innerHTML = rolesHTML(); syncSkillCheck(); updatePreview(); },
+  "skill-lvl": (el) => { S.draft.assessment[el.dataset.k] = +el.dataset.lvl; syncSkillCheck(); updatePreview(); },
   "date-in": (el) => { $("#date").value = toISO(addDays(today(), +el.dataset.n)); readDraft(); updatePreview(); },
   "cancel-edit": () => { S.editing = false; render(); },
-  "edit-plan": () => { const i = S.plan.inputs; S.draft = { goal: i.goal, level: i.level, hours: i.hoursPerWeek, date: i.targetDate, days: [...i.studyDays] }; S.bWorld = S.plan.world; S.editing = true; render(); window.scrollTo(0, 0); },
+  "edit-plan": () => { const i = S.plan.inputs; S.draft = { goal: i.goal, level: i.level, hours: i.hoursPerWeek, date: i.targetDate, days: [...i.studyDays], assessment: { ...(S.plan.assessment || {}) } }; S.bWorld = S.plan.world; S.editing = true; render(); window.scrollTo(0, 0); },
   "new-roadmap": () => {
     if (!S.confirm) { S.confirm = true; render(); return; }
     S.plan = null; S.confirm = false; S.sel = null; S.flapKey = null; S.draft = newDraft(); persist.plan(); render(); window.scrollTo(0, 0);
@@ -2059,6 +2169,13 @@ const H = {
   selfcheck: (el) => { const k = el.dataset.key; S.plan.checks[k] = S.plan.checks[k] || []; S.plan.checks[k][+el.dataset.i] = el.checked; persist.plan(); },
   lib: (el) => { S.lib = el.dataset.v; render(); },
   cert: (el) => { S.certTrack = el.dataset.v; render(); },
+  "toggle-project": (el) => {
+    const id = el.dataset.id, on = el.checked;
+    const list = S.plan.projects || (S.plan.projects = []);
+    const row = list.find((p) => p.id === id);
+    if (row) row.done = on; else list.push({ id, done: on });
+    persist.plan(); render();
+  },
   "build-for": (el) => { if (S.plan) openConfirm("Replace your current plan?", `You already have a plan for ${S.plan.inputs.goal}. Starting a plan for ${el.dataset.v} will replace it.`, "build-go", el.dataset.v, "Replace and continue"); else startBuilder(el.dataset.v); },
   "build-go": (el) => { $("#dlg").close(); startBuilder(el.dataset.v); },
   filter: (el) => { S.filter = el.dataset.v; render(); },
@@ -2083,9 +2200,10 @@ function onDraftEvent(e) {
   readDraft();
   if (e.target.id === "goal" && e.type === "input") {
     const p = expandGoal(S.draft.goal.trim() || "").find((x) => x.matched);
-    if (p && worldOf(p.name) !== S.bWorld) { setBuilderWorld(worldOf(p.name)); return; }
+    if (p && worldOf(p.name) !== S.bWorld) { setBuilderWorld(worldOf(p.name)); syncSkillCheck(); updatePreview(); return; }
     const r = $("#roles"); if (r) r.innerHTML = rolesHTML();
   }
+  if (e.target.id === "goal" || e.target.name === "level") syncSkillCheck();
   updatePreview();
 }
 document.addEventListener("input", (e) => { if (e.target.id === "q") { S.query = e.target.value; renderAppList(); return; } onDraftEvent(e); });
@@ -2108,7 +2226,7 @@ document.addEventListener("submit", (e) => {
     if (!f.date) errs.date = "Choose a date."; else if (daysBetween(today(), f.date) < 7) errs.date = "Choose a date at least one week from today.";
     if (!f.days.length) errs.days = "Pick at least one study day.";
     if (!setErrors(form, errs)) return;
-    const fresh = buildPlan({ goal: f.goal, level: f.level, hoursPerWeek: f.hours, targetDate: toISO(f.date), studyDays: f.days });
+    const fresh = buildPlan({ goal: f.goal, level: f.level, hoursPerWeek: f.hours, targetDate: toISO(f.date), studyDays: f.days, assessment: f.assessment });
     if (!fresh.topics.length) { setErrors(form, { date: "That's too little time to fit even one topic. Add study hours or days, or choose a later date." }); return; }
     const old = S.plan;
     if (S.editing && old) {
