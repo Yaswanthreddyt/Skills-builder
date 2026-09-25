@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root,:root[data-world="runway"]{--paper:#E9EFF7;--card:#FFFFFF;--ink:#101A33;--muted:#56627C;--line:#D3DCEA;--accent:#1E2A78;--accent-soft:#DDE3FB;--on-accent:#FFFFFF;--hi:#FFC24B;--hi-soft:#FFF0CC;--hi-ink:#7A5200;--good:#178A5B;--good-soft:#D9F2E6;--bad:#D6453D;--bad-soft:#FBE3E1;--violet:#6B3FB5;--violet-soft:#EADFFB;--board:#131A44;--board-ink:#FFC24B;--grid:transparent;--head:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;--body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;--mono:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;--r-card:14px;--r-btn:10px;--r-in:10px;--shadow:none;--hw:700;--hls:.2px;}
 :root[data-world="cloud"]{--paper:#BFDDFB;--card:rgba(255,255,255,.94);--ink:#12305B;--muted:#48648E;--line:#C6DDF5;--accent:#2F7BFF;--accent-soft:#DDEBFF;--on-accent:#FFFFFF;--hi:#FFB84D;--hi-soft:#FFF1D2;--hi-ink:#7A4B00;--good:#1E9E6A;--good-soft:#D8F3E7;--bad:#D9534F;--bad-soft:#FCE2E0;--violet:#6A55D9;--violet-soft:#E6E1FB;--board:#FFFFFF;--board-ink:#12305B;--grid:transparent;--head:"Fredoka","Nunito",system-ui,sans-serif;--body:"Nunito",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;--mono:"Fredoka","Nunito",system-ui,sans-serif;--r-card:30px;--r-btn:999px;--r-in:18px;--shadow:0 18px 38px -22px rgba(28,84,170,.55);--hw:600;--hls:0;}
@@ -1382,6 +1383,7 @@ const S = {
   lib: "Frontend Developer", certTrack: "Frontend Developer",
   filter: "All", query: "", flapKey: null, curWorld: null,
   bWorld: "runway", draft: null,
+  authMode: "signin", authErr: "", authMsg: "",
 };
 if (S.plan) { S.plan.checks = S.plan.checks || {}; S.plan.world = S.plan.world || worldOf(S.plan.tracks && S.plan.tracks[0] ? S.plan.tracks[0].name : ""); }
 const newDraft = () => ({ goal: "", level: "beginner", hours: (S.profile && S.profile.hours) || 8, date: toISO(addDays(today(), 84)), days: [1, 2, 3, 4, 5, 6] });
@@ -1389,6 +1391,9 @@ S.draft = newDraft();
 if (S.profile && S.profile.world) S.bWorld = S.profile.world;
 
 const B = { mode: "loading", db: null, user: null, dl: null, uid: null, me: null, readonly: false, q: {}, running: {}, timers: {} };
+const SB_URL = "https://ngczotnacovfubchqhct.supabase.co";
+const SB_KEY = "sb_publishable_8ee4yBhAO-IEdnQ08On9EA_OBu9FSAQ";
+let SB = null;
 const ref = (n) => B.db.doc(`data/users/${B.uid}/${n}`);
 function saveState(t) { const el = $("#savestate"); if (el) el.textContent = t; }
 function cloudSave(name, data) {
@@ -1411,10 +1416,70 @@ async function flush(name) {
     else { B.readonly = true; saveState("Not saved"); render(); }
   } finally { B.running[name] = false; }
 }
+/* ---- Supabase backend: the real store when this page is hosted outside claude.ai ---- */
+async function sbUpsert(table, row, conflictCol) {
+  clearTimeout(B.timers[table]);
+  B.timers[table] = setTimeout(async () => {
+    saveState("Saving...");
+    try {
+      const { error } = await SB.from(table).upsert(row, { onConflict: conflictCol });
+      if (error) throw error;
+      saveState("Saved to your private space");
+      setTimeout(() => saveState(""), 2500);
+    } catch (e) { saveState("Not saved"); }
+  }, 450);
+}
+async function sbSaveApps() {
+  clearTimeout(B.timers.apps);
+  B.timers.apps = setTimeout(async () => {
+    saveState("Saving...");
+    try {
+      const del = await SB.from("applications").delete().eq("user_id", B.uid);
+      if (del.error) throw del.error;
+      if (S.apps.length) {
+        const rows = S.apps.map((a) => ({ id: a.id, user_id: B.uid, company: a.company, role: a.role, status: a.status, applied_on: a.appliedOn || null, follow_up: a.followUp || null, link: a.link || null, notes: a.notes || null, updated_at: a.updatedAt || new Date().toISOString() }));
+        const ins = await SB.from("applications").insert(rows);
+        if (ins.error) throw ins.error;
+      }
+      saveState("Saved to your private space");
+      setTimeout(() => saveState(""), 2500);
+    } catch (e) { saveState("Not saved"); }
+  }, 450);
+}
+async function loadFromSupabase() {
+  const [profR, planR, appsR] = await Promise.all([
+    SB.from("profiles").select("*").eq("user_id", B.uid).maybeSingle(),
+    SB.from("plans").select("*").eq("user_id", B.uid).maybeSingle(),
+    SB.from("applications").select("*").eq("user_id", B.uid).order("updated_at", { ascending: false }),
+  ]);
+  const prof = profR.data, plan = planR.data, apps = appsR.data;
+  if (prof) S.profile = { name: prof.name, world: prof.world, hours: prof.hours, createdAt: prof.created_at };
+  else if (S.profile) persist.profile();
+  if (plan && plan.data) { S.plan = plan.data; }
+  else if (S.plan) persist.plan();
+  if (apps) S.apps = apps.map((a) => ({ id: a.id, company: a.company, role: a.role, status: a.status, appliedOn: a.applied_on || "", followUp: a.follow_up || "", link: a.link || "", notes: a.notes || "", updatedAt: a.updated_at }));
+  else if (S.apps.length) persist.apps();
+  if (S.plan) { S.plan.checks = S.plan.checks || {}; S.plan.world = S.plan.world || worldOf(S.plan.tracks[0].name); }
+  if (!S.profile) S.gate = "signup"; else S.gate = null;
+  if (S.profile && S.profile.world) S.bWorld = S.profile.world;
+  S.draft = newDraft();
+}
 const persist = {
-  plan() { store.set(K.plan, S.plan); cloudSave("plan", { plan: S.plan, updatedAt: Date.now() }); },
-  apps() { store.set(K.apps, S.apps); cloudSave("apps", { items: S.apps, updatedAt: Date.now() }); },
-  profile() { store.set(K.profile, S.profile); cloudSave("profile", S.profile ? { ...S.profile } : { deleted: true }); },
+  plan() {
+    store.set(K.plan, S.plan);
+    if (B.mode === "cloud") cloudSave("plan", { plan: S.plan, updatedAt: Date.now() });
+    else if (B.mode === "supabase") sbUpsert("plans", { user_id: B.uid, data: S.plan, updated_at: new Date().toISOString() }, "user_id");
+  },
+  apps() {
+    store.set(K.apps, S.apps);
+    if (B.mode === "cloud") cloudSave("apps", { items: S.apps, updatedAt: Date.now() });
+    else if (B.mode === "supabase") sbSaveApps();
+  },
+  profile() {
+    store.set(K.profile, S.profile);
+    if (B.mode === "cloud") cloudSave("profile", S.profile ? { ...S.profile } : { deleted: true });
+    else if (B.mode === "supabase" && S.profile) sbUpsert("profiles", { user_id: B.uid, name: S.profile.name, world: S.profile.world, hours: S.profile.hours, updated_at: new Date().toISOString() }, "user_id");
+  },
 };
 
 async function initBackend() {
@@ -1440,8 +1505,25 @@ async function initBackend() {
     if (!S.profile) S.gate = "signup";
     if (S.profile && S.profile.world) S.bWorld = S.profile.world;
     S.draft = newDraft();
+    return;
+  } catch (e) {
+    /* not inside claude.ai, or that host declined: fall through to the real standalone backend */
+  }
+  try {
+    if (!(window.supabase && window.supabase.createClient)) throw new Error("sdk not loaded");
+    SB = window.supabase.createClient(SB_URL, SB_KEY);
+    const { data: { session } } = await SB.auth.getSession();
+    if (session && session.user) {
+      B.mode = "supabase"; B.uid = session.user.id; B.me = { name: "", avatarUrl: "", email: session.user.email };
+      await loadFromSupabase();
+    } else {
+      B.mode = "supabase-anon";
+      S.gate = "auth";
+    }
+    return;
   } catch (e) {
     B.mode = "guest";
+
   }
 }
 
@@ -1835,10 +1917,30 @@ function renderAppList() {
   }).join("")}</div>`;
 }
 
+/* ----- sign in / sign up (standalone hosting, via Supabase) ----- */
+function authGateView() {
+  const mode = S.authMode || "signin";
+  const err = S.authErr || "";
+  const msg = S.authMsg || "";
+  return `<div class="gate"><h1>${mode === "signup" ? "Create your account" : "Sign in"}</h1><p class="lead">Runway keeps your plan, progress and applications in your own private account, so they follow you across devices.</p>
+  ${msg ? `<div class="banner">${esc(msg)}</div>` : ""}
+  <form id="auth-form" class="card" novalidate>
+    <div class="field"><label class="lbl" for="aemail">Email</label><input type="email" id="aemail" name="email" autocomplete="email" required></div>
+    <div class="field"><label class="lbl" for="apass">Password</label><input type="password" id="apass" name="password" autocomplete="${mode === "signup" ? "new-password" : "current-password"}" minlength="6" required><div class="hint">At least 6 characters.</div></div>
+    ${err ? `<div class="err" style="margin-bottom:14px">${esc(err)}</div>` : ""}
+    <button class="btn block" type="submit">${mode === "signup" ? "Create account" : "Sign in"}</button>
+    <button class="btn ghost block" type="button" style="margin-top:10px" data-act="auth-toggle">${mode === "signup" ? "I already have an account" : "New here? Create an account"}</button>
+  </form>
+  <div class="privacy" style="margin-top:18px">${LOCK}<div><b>Private by design.</b> Your data is stored under your account only, protected by database rules that only ever let you read or write your own rows. There's no shared password store visible to anyone, including whoever built this page.</div></div></div>`;
+}
+
 /* ----- sign-up (first visit) ----- */
 function gateView() {
+  if (S.gate === "auth") return authGateView();
   const name = S.gateName !== undefined ? S.gateName : (B.me && B.me.name) || "";
-  return `<div class="gate"><h1>Create your profile</h1><p class="lead">You're signed in through your claude.ai account. Set up your Runway profile and your plan, progress and applications will be kept just for you.</p>
+  const introLine = B.mode === "supabase" ? "You're signed in. Set up your Runway profile and your plan, progress and applications will be kept just for you." : "You're signed in through your claude.ai account. Set up your Runway profile and your plan, progress and applications will be kept just for you.";
+  return `<div class="gate"><h1>Create your profile</h1><p class="lead">${introLine}</p>
+  ${B.mode === "supabase" && B.me && B.me.email ? `<p class="muted small" style="margin-top:-12px">Signed in as ${esc(B.me.email)}</p>` : ""}
   <form id="signup-form" class="card" novalidate>
     <div class="field"><label class="lbl" for="pname">What should we call you?</label><input type="text" id="pname" name="name" value="${esc(name)}" maxlength="40" autocomplete="nickname"><div class="err" data-err="name"></div></div>
     <div class="field"><div class="lbl">What are you aiming for?</div><div class="portals" style="margin-bottom:0" role="group">${portalsHTML().replace(/data-act="portal"/g, 'data-act="gate-world"')}</div></div>
@@ -1871,15 +1973,21 @@ function openAppDialog(a) {
   $("#dlg").showModal();
 }
 function openAccount() {
-  const cloud = B.mode === "cloud";
+  const cloud = B.mode === "cloud"; const sb = B.mode === "supabase";
   const name = (S.profile && S.profile.name) || (B.me && B.me.name) || "Guest";
   const avatar = B.me && B.me.avatarUrl ? `<img src="${esc(B.me.avatarUrl)}" alt="">` : "";
+  const statusLine = cloud ? "Signed in with claude.ai" : sb ? `Signed in${B.me && B.me.email ? " as " + esc(B.me.email) : ""}` : "Guest mode";
+  const privacyLine = cloud
+    ? "<b>Your data is private.</b> Your profile, plan, progress and applications are stored in a private space tied to your account. Other people can't read it, and neither can the person who published this page. No password is stored."
+    : sb
+    ? "<b>Your data is private.</b> Your profile, plan, progress and applications are stored under your account, protected by database rules that only ever let your signed-in account read or write your own rows."
+    : "<b>Guest mode.</b> Your data is saved in this browser only, and won't follow you to another device. Sign in to keep it in a private, synced account.";
   $("#dlg").innerHTML = `<div class="dlg"><div class="dlg-head"><h2>Account & privacy</h2><button class="x" data-act="close-dlg" type="button">Close</button></div>
-  <div class="acct-row">${avatar}<div><b style="font-size:20px">${esc(name)}</b><div class="muted small">${cloud ? "Signed in with claude.ai" : "Guest mode"}</div></div></div>
-  <div class="privacy">${LOCK}<div>${cloud ? "<b>Your data is private.</b> Your profile, plan, progress and applications are stored in a private space tied to your account. Other people can't read it, and neither can the person who published this page. No password is stored." : "<b>Guest mode.</b> Your data is saved in this browser only. Open Runway while signed in to claude.ai to keep it in a private, synced space."}</div></div>
+  <div class="acct-row">${avatar}<div><b style="font-size:20px">${esc(name)}</b><div class="muted small">${statusLine}</div></div></div>
+  <div class="privacy">${LOCK}<div>${privacyLine}</div></div>
   ${B.readonly ? `<div class="banner warn"><b>Saving is off</b>Your account has view-only access to this page, so changes stay in this browser.</div>` : ""}
   ${S.profile ? `<form id="profile-form" novalidate><div class="field"><label class="lbl" for="ename">Display name</label><input type="text" id="ename" name="name" value="${esc(S.profile.name)}" maxlength="40"><div class="err" data-err="name"></div></div><button class="btn sm" type="submit">Save name</button></form>` : ""}
-  <div class="actions"><button class="btn ghost" data-act="export">Download my data</button><button class="btn danger" data-act="wipe">Delete all my data</button></div></div>`;
+  <div class="actions"><button class="btn ghost" data-act="export">Download my data</button>${sb ? `<button class="btn ghost" data-act="signout">Sign out</button>` : ""}<button class="btn danger" data-act="wipe">Delete all my data</button></div></div>`;
   $("#dlg").showModal();
 }
 async function exportData() {
@@ -1896,8 +2004,17 @@ async function exportData() {
 async function wipeAll() {
   Object.keys(B.timers).forEach((k) => clearTimeout(B.timers[k])); B.q = {};
   if (B.mode === "cloud" && !B.readonly) { try { await Promise.all(["profile", "plan", "apps"].map((n) => ref(n).delete())); } catch (e) {} }
+  if (B.mode === "supabase") { try { await Promise.all([SB.from("profiles").delete().eq("user_id", B.uid), SB.from("plans").delete().eq("user_id", B.uid), SB.from("applications").delete().eq("user_id", B.uid)]); } catch (e) {} }
   [K.plan, K.apps, K.profile, "runway.web.apps.v1"].forEach(store.del);
-  S.plan = null; S.apps = []; S.profile = null; S.sel = null; S.flapKey = null; S.editing = false; S.confirm = false; S.draft = newDraft(); S.gate = B.mode === "cloud" ? "signup" : null; S.tab = "roadmap";
+  S.plan = null; S.apps = []; S.profile = null; S.sel = null; S.flapKey = null; S.editing = false; S.confirm = false; S.draft = newDraft();
+  S.gate = (B.mode === "cloud" || B.mode === "supabase") ? "signup" : null; S.tab = "roadmap";
+  $("#dlg").close(); render();
+}
+async function signOut() {
+  if (SB) { try { await SB.auth.signOut(); } catch (e) {} }
+  B.mode = "supabase-anon"; B.uid = null; B.me = null;
+  S.plan = null; S.apps = []; S.profile = null; S.sel = null; S.flapKey = null; S.editing = false; S.confirm = false; S.draft = newDraft();
+  S.gate = "auth"; S.authMode = "signin"; S.authErr = ""; S.authMsg = ""; S.tab = "roadmap";
   $("#dlg").close(); render();
 }
 function openConfirm(title, body, act, val, label) {
@@ -1920,6 +2037,7 @@ const H = {
   wipe: (el) => { if (!el.dataset.sure) { el.dataset.sure = "1"; el.textContent = "Click again to delete everything"; return; } wipeAll(); },
   portal: (el) => { readDraft(); setBuilderWorld(el.dataset.v); },
   "gate-world": (el) => { const n = $("#pname"); if (n) S.gateName = n.value; S.bWorld = el.dataset.v; render(); },
+  "auth-toggle": () => { S.authMode = S.authMode === "signup" ? "signin" : "signup"; S.authErr = ""; render(); },
   role: (el) => { const n = el.dataset.v; S.draft.goal = n; const g = $("#goal"); if (g) g.value = n; setBuilderWorld(worldOf(n)); $("#roles").innerHTML = rolesHTML(); updatePreview(); },
   "date-in": (el) => { $("#date").value = toISO(addDays(today(), +el.dataset.n)); readDraft(); updatePreview(); },
   "cancel-edit": () => { S.editing = false; render(); },
@@ -1949,6 +2067,7 @@ const H = {
   "edit-app": (el) => openAppDialog(S.apps.find((a) => a.id === el.dataset.id)),
   advance: (el) => { S.apps = S.apps.map((a) => (a.id === el.dataset.id ? { ...a, status: NEXT[a.status], updatedAt: new Date().toISOString() } : a)); persist.apps(); render(); },
   "close-dlg": () => $("#dlg").close(),
+  signout: () => signOut(),
   fu: (el) => { $("#followUp").value = el.dataset.n ? toISO(addDays(today(), +el.dataset.n)) : ""; },
   "delete-app": (el) => {
     if (!el.dataset.sure) { el.dataset.sure = "1"; el.textContent = "Click again to delete"; return; }
@@ -2000,6 +2119,28 @@ document.addEventListener("submit", (e) => {
     }
     S.plan = fresh; S.bWorld = fresh.world; S.editing = false; S.sel = null; S.flapKey = null; S.confirm = false;
     persist.plan(); render(); window.scrollTo(0, 0);
+  }
+  if (form.id === "auth-form") {
+    const email = ($("#aemail").value || "").trim(), password = $("#apass").value || "";
+    S.authErr = "";
+    (async () => {
+      try {
+        const mode = S.authMode || "signin";
+        const { data, error } = mode === "signup" ? await SB.auth.signUp({ email, password }) : await SB.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        if (mode === "signup" && !data.session) {
+          S.authErr = ""; S.authMsg = "Check your email to confirm your account, then sign in.";
+          S.authMode = "signin"; render(); return;
+        }
+        B.mode = "supabase"; B.uid = data.session.user.id; B.me = { name: "", avatarUrl: "", email: data.session.user.email };
+        S.gate = null; S.authMsg = "";
+        await loadFromSupabase();
+        render(); window.scrollTo(0, 0);
+      } catch (err) {
+        S.authErr = (err && err.message) || "Something went wrong. Try again.";
+        render();
+      }
+    })();
   }
   if (form.id === "signup-form") {
     const v = Object.fromEntries(new FormData(form).entries()), errs = {};
