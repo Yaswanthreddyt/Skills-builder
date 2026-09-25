@@ -7,9 +7,15 @@ Pick a role like Cloud Engineer, Data Analyst, or Frontend Developer, tell it ho
 ## What it does
 
 - Covers 24 roles and skills across three areas: general tech (frontend, backend, product, design, security), cloud (AWS/Azure/GCP roles, DevOps, SRE), and data (analytics, engineering, ML, BI)
-- A quick skill check lets you rate yourself topic by topic (New to this, Some exposure, Comfortable, Strong) instead of one vague overall level. This actually drives the plan: a topic you're strong in gets a light touch, a topic you're new to gets real time
-- A skill gap view shows you where the biggest gaps are, sorted worst first, so you always know why the plan looks the way it does
+- A skill check lets you rate yourself on each topic across seven levels, from New to Mastery, instead of one vague overall guess. This actually drives the plan: a topic you're strong in gets a light touch, a topic you're new to gets real time
+- A skill gap view shows current level next to the level this role actually needs, why that topic matters, and a specific next step pointing at a real resource, not just a chart for its own sake
+- A stage tracker shows where you actually are in the bigger picture: Foundations, Core skills, Advanced skills, Practical challenges, Project, Role ready
 - Your personalized roadmap sits right in your profile once you pick a skill: a day by day schedule with every topic laid out as a connected, expandable timeline. Tap any topic to preview its lesson and practice task inline, no dialog needed, or open the full lesson when you want it
+- You can run more than one journey at once. Start a plan for Cloud Engineer, then later start one for Data Engineer without losing the first, and switch between them from a small pill row on your profile
+- If two of your journeys share real topic overlap, Runway shows you what carries over and what's new, built from your actual curated content rather than a guess
+- A skill map for each role shows which topics are core, which are important, and which are bonus depth, and roughly what order they build on each other. Tap any topic on the map to jump straight to its lesson
+- Search any skill in the Library to see which roles actually use it, and how it's described differently in each one
+- Cloud Engineer has a set of real practical challenges: scenario-based problems (a broken VPC route, an over-permissioned IAM policy, a cost spike, a timing-out function) rather than more quiz questions. Other roles don't have this yet; we'd rather say so than fill the space with generic filler
 - Builds a realistic schedule based on your hours per week and target date, and if you don't have enough time for everything it tells you honestly what got cut and why
 - Every topic has a real lesson, a practice task, and links to actual free or well known resources (MDN, freeCodeCamp, Kaggle Learn, AWS docs, that kind of thing), not made up links
 - Suggested projects, generated from your actual chosen topics rather than a generic list, so what you're asked to build is tied to what you're actually learning

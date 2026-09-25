@@ -247,7 +247,7 @@ textarea{min-height:88px;resize:vertical}
 .route.timeline::before{content:"";position:absolute;left:9px;top:8px;bottom:8px;width:1.5px;background:var(--line)}
 .tl-node{position:relative;display:block;background:var(--card);border:1px solid var(--line);border-radius:var(--r-card);padding:14px 18px 16px;box-shadow:var(--shadow)}
 .tl-dot{position:absolute;left:-26px;top:20px;width:11px;height:11px;border-radius:50%;background:var(--line);border:2px solid var(--paper)}
-.tl-dot.lvl0{background:var(--bad)}.tl-dot.lvl1{background:var(--hi)}.tl-dot.lvl2{background:var(--accent)}.tl-dot.lvl3{background:var(--good)}
+.tl-dot.lvl0{background:var(--bad)}.tl-dot.lvl1{background:color-mix(in srgb,var(--bad) 60%,var(--hi))}.tl-dot.lvl2{background:var(--hi)}.tl-dot.lvl3{background:color-mix(in srgb,var(--hi) 50%,var(--accent))}.tl-dot.lvl4{background:var(--accent)}.tl-dot.lvl5{background:color-mix(in srgb,var(--accent) 50%,var(--good))}.tl-dot.lvl6{background:var(--good)}
 .tl-node details summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px}
 .tl-node details summary::-webkit-details-marker{display:none}
 .tl-node .nm{font-family:var(--head);font-size:19px;font-weight:var(--hw);letter-spacing:-.01em}
@@ -271,10 +271,13 @@ textarea{min-height:88px;resize:vertical}
 .gaphead{display:flex;justify-content:space-between;gap:12px;font-size:14.5px}
 .gapname{font-weight:600}
 .gaplabel{color:var(--muted);font-size:13px}
-.gaptrack{height:8px;border-radius:8px;background:var(--line);overflow:hidden}
+.gaptrack{height:8px;border-radius:8px;background:var(--line);overflow:hidden;position:relative}
 .gaptrack i{display:block;height:100%;background:var(--accent);border-radius:8px;transition:width .5s var(--ease)}
-.gaprow.big .gaptrack i{background:var(--bad)}
+.gaptrack i.req{position:absolute;top:-3px;width:3px!important;height:14px;background:var(--ink);border-radius:2px;transform:translateX(-1.5px)}
+.gaprow.big .gaptrack i:not(.req){background:var(--bad)}
 .gaprow.big .gapname{color:var(--bad)}
+.gapwhy,.gapnext{font-size:13px;color:var(--muted);line-height:1.5}
+.gapwhy b,.gapnext b{color:var(--ink);font-weight:600}
 
 /* ---------- projects ---------- */
 .projgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
@@ -287,6 +290,15 @@ textarea{min-height:88px;resize:vertical}
 
 /* ---------- library, lessons, certs ---------- */
 .trackbar{margin:18px 0 24px}
+.skillhits{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.skillhit{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:var(--r-in);padding:10px 13px;transition:border-color .2s var(--ease)}
+.skillhit:hover{border-color:var(--accent)}
+.skillmap-wrap{overflow-x:auto;margin:10px 0 4px;-webkit-overflow-scrolling:touch}
+.skillmap{display:block;height:auto}
+.mapnode{cursor:pointer}
+.mapnode rect{transition:filter .2s var(--ease)}
+.mapnode:hover rect,.mapnode:focus-visible rect{filter:brightness(.96)}
+.mapnode:focus-visible{outline:2.5px solid var(--accent);outline-offset:2px}
 .acc{display:grid;gap:10px}
 details.tp{background:var(--card);border:1px solid var(--line);border-radius:var(--r-card);overflow:hidden}
 details.tp>summary{list-style:none;padding:16px 18px;display:flex;gap:12px;justify-content:space-between;align-items:center;cursor:pointer;transition:background .2s var(--ease)}
@@ -342,6 +354,17 @@ dialog::backdrop{background:rgba(8,14,20,.45);backdrop-filter:blur(2px);opacity:
 .jpill .jpct{font-family:var(--mono);font-size:12px;opacity:.75}
 .jpill.jadd{border-style:dashed;color:var(--accent)}
 .transitioncard{margin-bottom:22px}
+.stagebar{display:flex;gap:0;margin-bottom:20px;overflow-x:auto}
+.stage{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;min-width:84px;position:relative;padding-top:6px}
+.stage::before{content:"";position:absolute;top:11px;left:-50%;width:100%;height:2px;background:var(--line);z-index:0}
+.stage:first-child::before{display:none}
+.stage.done::before{background:var(--good)}
+.stagedot{width:12px;height:12px;border-radius:50%;background:var(--line);border:2px solid var(--paper);z-index:1}
+.stage.done .stagedot{background:var(--good)}
+.stage.current .stagedot{background:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+.stagename{font-size:11.5px;color:var(--muted);text-align:center;font-weight:600}
+.stage.current .stagename{color:var(--ink)}
+.stage.done .stagename{color:var(--good)}
 .profilecard .acct-row img{width:54px;height:54px;border-radius:50%}
 .avatar-fallback{width:54px;height:54px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;font-family:var(--head);font-size:22px;font-weight:700;flex:none}
 .acct-row img{width:54px;height:54px;border-radius:50%}
@@ -1254,9 +1277,18 @@ const mins = (m) => (m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? " " + (m % 60)
 const topicKey = (tp) => tp.track + "|" + tp.title;
 const PRIORITY = { 1: "Core", 2: "Important", 3: "Bonus" };
 const LEVELS = [{ id: "beginner", label: "Beginner", factor: 1 }, { id: "some", label: "Some experience", factor: 0.6 }, { id: "advanced", label: "Advanced", factor: 0.35 }];
-const SKILL_LEVELS = [{ id: 0, label: "New to this", short: "New" }, { id: 1, label: "Some exposure", short: "Some" }, { id: 2, label: "Comfortable", short: "Comfy" }, { id: 3, label: "Strong", short: "Strong" }];
-const GAP_FACTOR = [1, 0.7, 0.4, 0.15];
-const defaultSkillLevel = (overall) => (overall === "advanced" ? 2 : overall === "some" ? 1 : 0);
+const SKILL_LEVELS = [
+  { id: 0, label: "New", short: "New" },
+  { id: 1, label: "Beginner", short: "Begin" },
+  { id: 2, label: "Developing", short: "Dev" },
+  { id: 3, label: "Comfortable", short: "Comfy" },
+  { id: 4, label: "Strong", short: "Strong" },
+  { id: 5, label: "Advanced", short: "Adv" },
+  { id: 6, label: "Mastery", short: "Master" },
+];
+const GAP_FACTOR = [1, 0.85, 0.65, 0.45, 0.28, 0.15, 0.05];
+const MAX_SKILL = SKILL_LEVELS.length - 1;
+const defaultSkillLevel = (overall) => (overall === "advanced" ? 4 : overall === "some" ? 2 : 0);
 const askey = (track, title) => track + "|" + title;
 const DAYS = [[1, "Mon"], [2, "Tue"], [3, "Wed"], [4, "Thu"], [5, "Fri"], [6, "Sat"], [0, "Sun"]];
 const getResArr = (k) => R[k];
@@ -1344,6 +1376,25 @@ function schedule(plan) {
 }
 const topicOf = (plan, s) => plan.topics.find((t) => topicKey(t) === s.tk);
 const nextSession = (plan) => plan.sessions.find((s) => !s.doneOn);
+// Practical challenges: real, hands-on scenarios rather than more multiple-choice quizzing.
+// Deliberately scoped to one role for now rather than generic placeholder text for all 24.
+const CHALLENGES = {
+  "Cloud Engineer": [
+    { id: "ce-1", skill: "Cloud networking (VPC)", difficulty: "Intermediate", description: "A web server in a public subnet can reach the internet, but a database in a private subnet can't reach anything, including the update servers it needs to patch itself. Diagnose why, and fix it without putting the database in a public subnet.", outcome: "State the exact missing piece (hint: outbound-only internet access for private resources) and describe the fix in one or two sentences." },
+    { id: "ce-2", skill: "Identity & access (IAM)", difficulty: "Beginner", description: "A teammate's automation script needs to read from one storage bucket and write logs to another. Right now it's running with a role that has full admin access. Rewrite the permissions so the script can do its job and nothing else.", outcome: "Write out the specific actions and resources the policy should allow, and explain what you removed and why." },
+    { id: "ce-3", skill: "Cost & security basics", difficulty: "Beginner", description: "A monthly bill has tripled with no obvious change in traffic. You have access to the billing dashboard. Describe the first three things you'd check, in order, and why that order.", outcome: "A short, ordered troubleshooting list, each step justified in a sentence." },
+    { id: "ce-4", skill: "Compute & virtual machines", difficulty: "Intermediate", description: "A virtual machine that was working fine yesterday is now unreachable over SSH, but shows as 'running' in the console. Walk through how you'd narrow down whether it's a network issue, a firewall issue, or the instance itself.", outcome: "A short diagnostic sequence: what you'd check first, second, third, and what result at each step would point you toward the actual cause." },
+    { id: "ce-5", skill: "Automation & IaC", difficulty: "Advanced", description: "You're handed a cloud environment that was built by hand in the console over several months, with no code behind it. Describe your approach to bringing it under infrastructure as code without causing an outage.", outcome: "An honest, staged plan: what you'd import first, how you'd verify nothing changes underneath a live workload, and what you'd leave for last." },
+    { id: "ce-6", skill: "Serverless & managed services", difficulty: "Intermediate", description: "A function that resizes uploaded images works fine for small files but times out on large ones, and you're being charged more than expected. Explain what's likely happening and two different ways to fix it.", outcome: "Name the likely cause (execution time and memory limits) and compare two real fixes, including the trade-off of each." },
+  ],
+};
+function challengesFor(plan) {
+  const roleName = plan.tracks[0] ? plan.tracks[0].name : "";
+  const list = CHALLENGES[roleName];
+  if (!list) return null;
+  const doneMap = {}; (plan.challenges || []).forEach((c) => (doneMap[c.id] = c.done));
+  return list.map((c) => ({ ...c, done: !!doneMap[c.id] }));
+}
 function projectsFor(plan) {
   const topics = plan.topics;
   if (!topics.length) return [];
@@ -1460,7 +1511,7 @@ const S = {
   apps: store.get(K.apps, store.get("runway.web.apps.v1", [])), profile: store.get(K.profile, null),
   editing: false, sel: null, confirm: false, gate: null,
   lib: "Frontend Developer", certTrack: "Frontend Developer",
-  filter: "All", query: "", flapKey: null, curWorld: null,
+  filter: "All", query: "", skillQuery: "", flapKey: null, curWorld: null,
   bWorld: "runway", draft: null,
   authMode: "signin", authErr: "", authMsg: "",
 };
@@ -1841,14 +1892,41 @@ function updatePreview() {
 function wirePreview() { updatePreview(); }
 
 /* ----- plan / roadmap ----- */
+function requiredLevelFor(priority) { return priority === 1 ? 5 : priority === 2 ? 4 : 3; }
+function whyItMatters(tp) {
+  if (tp.priority === 1) return "Core to this role. Most of the rest of the plan assumes you have this.";
+  if (tp.priority === 2) return "Adds real depth once the core is solid. Comes up often in the work itself.";
+  return "Good to have once the essentials are covered. Not a blocker.";
+}
+function nextActionFor(plan, tp) {
+  const ss = plan.sessions.filter((s) => s.tk === topicKey(tp));
+  const next = ss.find((s) => !s.doneOn);
+  if (!next) return "Every session for this topic is done. Revisit the practice task if you want to push further.";
+  const res = getRes(tp.res[next.n % tp.res.length]);
+  return `Start with: ${res.title}${next.n === 0 ? "" : " (session " + (next.n + 1) + " of " + next.of + ")"}`;
+}
 function gapAnalysisHTML(plan) {
-  const rows = [...plan.topics].sort((a, b) => (a.skillLevel ?? 0) - (b.skillLevel ?? 0));
+  const rows = [...plan.topics].sort((a, b) => (a.skillLevel ?? 0) - requiredLevelFor(a.priority) - ((b.skillLevel ?? 0) - requiredLevelFor(b.priority)));
   return `<div class="gaplist">${rows.map((tp) => {
-    const lvl = tp.skillLevel ?? 0, gap = 3 - lvl, big = gap >= 2;
-    return `<div class="gaprow ${big ? "big" : ""}"><div class="gaphead"><span class="gapname">${esc(tp.title)}</span><span class="gaplabel">${esc(SKILL_LEVELS[lvl].label)}</span></div>
-      <div class="gaptrack"><i style="width:${Math.round((lvl / 3) * 100)}%"></i></div></div>`;
+    const lvl = tp.skillLevel ?? 0, required = requiredLevelFor(tp.priority), gap = required - lvl, big = gap >= 3;
+    return `<div class="gaprow ${big ? "big" : ""}"><div class="gaphead"><span class="gapname">${esc(tp.title)}</span><span class="gaplabel">${esc(SKILL_LEVELS[lvl].label)} &rarr; ${esc(SKILL_LEVELS[required].label)}</span></div>
+      <div class="gaptrack"><i style="width:${Math.round((lvl / MAX_SKILL) * 100)}%"></i><i class="req" style="left:${Math.round((required / MAX_SKILL) * 100)}%"></i></div>
+      <div class="gapwhy"><b>Why it matters:</b> ${esc(whyItMatters(tp))}</div>
+      <div class="gapnext"><b>Next:</b> ${esc(nextActionFor(plan, tp))}</div></div>`;
   }).join("")}</div>
-  <p class="hint" style="margin-top:14px">Rows near the top are where you rated yourself lowest. Those topics got more study hours; anything you already called "Strong" got a light touch instead.</p>`;
+  <p class="hint" style="margin-top:14px">Rows near the top have the biggest gap between where you are and what this role needs. The dot on each bar marks the level we're aiming for; that's what set your study hours.</p>`;
+}
+function challengesHTML(plan) {
+  const list = challengesFor(plan);
+  if (list === null) return `<section class="sect"><h2>Practical challenges</h2><p class="lead">Not written for ${esc(plan.tracks[0] ? plan.tracks[0].name : "this role")} yet. Cloud Engineer has a full set; more roles are coming rather than filling this in with generic placeholders.</p></section>`;
+  if (!list.length) return "";
+  return `<section class="sect"><h2>Practical challenges</h2><p class="lead">Real scenarios, not quizzes. Talk through your answer out loud or write it down, there's no single right phrasing.</p>
+  <div class="projgrid">${list.map((c) => `<article class="card proj challenge ${c.done ? "done" : ""}">
+    <div class="projtop"><span class="pill">${esc(c.difficulty)}</span>${c.done ? `<span class="pill" style="background:var(--good-soft);color:var(--good)">Solved</span>` : ""}</div>
+    <h3>${esc(c.skill)}</h3><p class="muted small" style="line-height:1.5">${esc(c.description)}</p>
+    <div class="practice" style="margin-top:10px"><b>What a good answer covers</b><p>${esc(c.outcome)}</p></div>
+    <label class="ck" style="margin-top:14px"><input type="checkbox" data-act="toggle-challenge" data-id="${esc(c.id)}" ${c.done ? "checked" : ""}><span>Mark as solved</span></label>
+  </article>`).join("")}</div></section>`;
 }
 function projectsHTML(plan) {
   const projects = projectsFor(plan);
@@ -1860,6 +1938,21 @@ function projectsHTML(plan) {
     <label class="ck" style="margin-top:14px"><input type="checkbox" data-act="toggle-project" data-id="${esc(p.id)}" ${p.done ? "checked" : ""}><span>Mark as built</span></label>
   </article>`).join("")}</div>`;
 }
+function journeyStageHTML(plan) {
+  const core = plan.topics.filter((t) => t.priority === 1), rest = plan.topics.filter((t) => t.priority !== 1);
+  const doneOf = (tp) => { const ss = plan.sessions.filter((s) => s.tk === topicKey(tp)); return ss.length && ss.every((s) => s.doneOn); };
+  const coreStarted = core.some((t) => plan.sessions.some((s) => s.tk === topicKey(t) && s.doneOn));
+  const coreDone = core.length > 0 && core.every(doneOf);
+  const advDone = rest.some(doneOf);
+  const projectsBuilt = (plan.projects || []).some((p) => p.done);
+  const challengesSolved = (plan.challenges || []).some((c) => c.done);
+  const ready = coreDone && rest.every(doneOf) && projectsBuilt;
+  const stages = ["Foundations", "Core skills", "Advanced skills", "Practical challenges", "Project", "Role ready"];
+  const reached = [true, coreStarted, coreDone, advDone, challengesSolved || advDone, projectsBuilt];
+  let current = 0; reached.forEach((r, i) => { if (r) current = i; });
+  if (ready) current = stages.length - 1;
+  return `<div class="stagebar" aria-label="Overall journey stage">${stages.map((s, i) => `<div class="stage ${i < current ? "done" : ""} ${i === current ? "current" : ""}"><span class="stagedot"></span><span class="stagename">${esc(s)}</span></div>`).join("")}</div>`;
+}
 function planView(plan) {
   const L = WORLDS[plan.world].L;
   const pace = paceInfo(plan), next = nextSession(plan);
@@ -1869,7 +1962,8 @@ function planView(plan) {
   const late = !pace.complete && pace.late > 0;
   const key = pace.complete ? "done" : next.id, still = S.flapKey === key;
   const hero = plan.world === "cloud" ? cloudDeck(plan, pace, next, late, still) : plan.world === "data" ? dataConsole(plan, pace, next, late, still) : runwayBoard(plan, pace, next, late, key);
-  return `${hero}
+  return `${journeyStageHTML(plan)}
+  ${hero}
   <div class="facts"><div>${pace.done}/${pace.total}<span>${L.sess.toLowerCase()}s done</span></div><div>${streak}<span>day streak</span></div><div>${hoursDone}<span>hours studied</span></div><div>${pace.complete ? "Done" : pace.left < 0 ? "Past" : pace.left}<span>${pace.complete ? "all complete" : "days to target"}</span></div></div>
   ${paceBanner(plan, pace)}
   <div class="stack"><section class="card" aria-label="${L.calTitle}"><h2>${L.calTitle}</h2><p class="muted small" style="margin:2px 0 14px">${L.calSub}</p>${calendarHTML(plan)}</section>
@@ -1887,6 +1981,7 @@ function planView(plan) {
       <div class="bar ${d === ss.length ? "done" : ""}"><i style="width:${Math.round((d / ss.length) * 100)}%"></i></div></li>`;
     }).join("")}</ol>
     ${plan.dropped.length ? `<h4>Left out for now</h4><p class="muted small">${plan.dropped.map((d) => `${esc(d.title)} (${d.hours} hrs)`).join(" · ")}. Add hours or move your date to fit them in.</p>` : ""}</section>
+  ${challengesHTML(plan)}
   <section class="sect"><h2>Projects to build toward ${esc(plan.tracks[0] ? plan.tracks[0].name : "your goal")}</h2><p class="lead">Built from your own plan, roughly in the order you'll be ready for them.</p>${projectsHTML(plan)}</section>
   <section class="sect"><h2>Certifications to aim for</h2><p class="lead">Recognised credentials for your path, from free starters to advanced.</p>${certsBlock(plan.tracks.map((t) => t.name))}</section>
   <div class="actions"><button class="btn ghost" data-act="edit-plan">${L.edit}</button><button class="btn danger" data-act="new-roadmap">${S.confirm ? "Click again to delete this plan" : L.fresh}</button></div>`;
@@ -2060,12 +2155,64 @@ function runHero() {
 function trackChips(active, act) {
   return ["cloud", "data", "runway"].map((w) => `<div class="muted small" style="margin:14px 0 6px;font-weight:700">${WORLDS[w].name}</div><div class="chips">${CATALOG.filter((t) => worldOf(t.name) === w).map((t) => `<button class="chip" data-act="${act}" data-v="${esc(t.name)}" aria-pressed="${t.name === active}">${esc(t.name)}</button>`).join("")}</div>`).join("");
 }
+function topicNodeIds(track) {
+  const map = {}; const tiers = [1, 2, 3];
+  tiers.forEach((p, ci) => { track.topics.filter((t) => t.priority === p).forEach((tp, ri) => { map[tp.title] = "tp-" + track.name.replace(/\W+/g, "") + "-" + ci + "-" + ri; }); });
+  return map;
+}
+function skillMapHTML(track) {
+  const tiers = [[1, "Core", "var(--accent)"], [2, "Important", "var(--hi)"], [3, "Bonus", "var(--muted)"]];
+  const cols = tiers.map(([p]) => track.topics.filter((t) => t.priority === p));
+  if (cols.every((c) => !c.length)) return "";
+  const ids = topicNodeIds(track);
+  const colW = 230, rowH = 56, padTop = 20, W = colW * 3, maxRows = Math.max(...cols.map((c) => c.length), 1), H = padTop * 2 + maxRows * rowH;
+  const posOf = (ci, ri, n) => { const y = padTop + (H - padTop * 2) * ((ri + 0.5) / n); return { x: colW * ci + colW / 2, y }; };
+  let edges = "";
+  for (let ci = 0; ci < 2; ci++) {
+    const from = cols[ci], to = cols[ci + 1];
+    if (!from.length || !to.length) continue;
+    from.forEach((_, fi) => { const fp = posOf(ci, fi, from.length);
+      const nearest = Math.round((fi / Math.max(1, from.length - 1)) * Math.max(0, to.length - 1));
+      [nearest, nearest + 1].forEach((ti) => { if (ti >= 0 && ti < to.length) { const tp2 = posOf(ci + 1, ti, to.length); edges += `<line x1="${fp.x + 76}" y1="${fp.y}" x2="${tp2.x - 76}" y2="${tp2.y}" stroke="var(--line)" stroke-width="1.5"/>`; } });
+    });
+  }
+  let nodes = "";
+  cols.forEach((col, ci) => { col.forEach((tp, ri) => { const p = posOf(ci, ri, col.length);
+    nodes += `<g class="mapnode" data-act="open-topic" data-id="${esc(ids[tp.title])}" tabindex="0" role="button" aria-label="Open lesson: ${esc(tp.title)}">
+      <rect x="${p.x - 74}" y="${p.y - 20}" width="148" height="40" rx="10" fill="var(--card)" stroke="${tiers[ci][2]}" stroke-width="1.5"/>
+      <text x="${p.x}" y="${p.y + 4}" text-anchor="middle" font-size="12" fill="var(--ink)" style="font-family:var(--body)">${esc(tp.title.length > 24 ? tp.title.slice(0, 22) + "…" : tp.title)}</text>
+    </g>`;
+  }); });
+  const heads = tiers.map(([, label, color], i) => `<text x="${colW * i + colW / 2}" y="14" text-anchor="middle" font-size="12" font-weight="700" fill="${color}" style="font-family:var(--body)">${label}</text>`).join("");
+  return `<div class="skillmap-wrap"><svg class="skillmap" viewBox="0 0 ${W} ${H}" role="img" aria-label="Skill map for ${esc(track.name)}, grouped by core, important and bonus topics" style="min-width:${Math.max(680, W)}px">${heads}${edges}${nodes}</svg></div>
+  <p class="hint">Left to right is roughly the order this path builds on itself: core topics first, then important ones, then bonus depth. Tap a card to open its lesson.</p>`;
+}
+function rolesForSkill(query) {
+  const q = query.trim().toLowerCase();
+  if (q.length < 2) return [];
+  const hits = [];
+  CATALOG.forEach((entry) => {
+    const matches = entry.topics.filter((tp) => tp.title.toLowerCase().includes(q));
+    if (matches.length) hits.push({ role: entry.name, world: worldOf(entry.name), topics: matches.map((m) => m.title) });
+    else if (entry.name.toLowerCase().includes(q)) hits.push({ role: entry.name, world: worldOf(entry.name), topics: [] });
+  });
+  return hits;
+}
+function skillSearchResultsHTML() {
+  const q = S.skillQuery || "";
+  if (q.trim().length < 2) return `<p class="hint">Type at least 2 characters. Try "Python", "SQL", or "Docker" to see it show up under several roles.</p>`;
+  const hits = rolesForSkill(q);
+  if (!hits.length) return `<p class="muted small">No role in the catalog uses "${esc(q)}" yet.</p>`;
+  return `<ul class="skillhits">${hits.map((h) => `<li><button type="button" class="skillhit" data-act="lib" data-v="${esc(h.role)}"><span class="world-tag" style="margin-right:8px">${esc(WORLDS[h.world].name)}</span><b>${esc(h.role)}</b>${h.topics.length ? `<span class="muted small" style="display:block;margin-top:2px">${h.topics.map(esc).join(", ")}</span>` : ""}</button></li>`).join("")}</ul>`;
+}
 function libraryView() {
   const t = CATALOG.find((c) => c.name === S.lib) || CATALOG[0];
   return `<h1>Library</h1><p class="lead">Every lesson, practice task and resource in one place. Pick a role or skill, and open any topic to learn from it right here. The site changes its look to match the field you're exploring.</p>
+  <div class="field" style="max-width:420px"><label class="lbl" for="skq">Where is this skill used?</label><input type="search" id="skq" placeholder="Search a skill, e.g. Python, SQL, Docker" value="${esc(S.skillQuery || "")}"><div id="skillsearch" style="margin-top:10px">${skillSearchResultsHTML()}</div></div>
   <div class="trackbar">${trackChips(t.name, "lib")}</div>
   <div class="row-actions" style="margin:0 0 18px;align-items:center;justify-content:space-between"><div><h2>${esc(t.name)}</h2><div class="muted">${esc(t.blurb)}</div></div><button class="btn hi" data-act="build-for" data-v="${esc(t.name)}">Plan my days for this</button></div>
-  <div class="acc">${t.topics.map((tp) => `<details class="tp"><summary><span><span class="nm">${esc(tp.title)}</span><span class="muted small" style="display:block">${tp.hours} hrs · ${PRIORITY[tp.priority]}</span></span><span class="pill">${tp.res.length} resources</span></summary><div class="tp-body">${lessonHTML({ ...tp, track: t.name }, null)}</div></details>`).join("")}</div>
+  <h4 style="margin-top:0">Skill map</h4>${skillMapHTML(t)}
+  <div class="acc">${(() => { const ids = topicNodeIds(t); return t.topics.map((tp) => `<details class="tp" id="${esc(ids[tp.title])}"><summary><span><span class="nm">${esc(tp.title)}</span><span class="muted small" style="display:block">${tp.hours} hrs · ${PRIORITY[tp.priority]}</span></span><span class="pill">${tp.res.length} resources</span></summary><div class="tp-body">${lessonHTML({ ...tp, track: t.name }, null)}</div></details>`).join(""); })()}</div>
   <p class="hint" style="margin-top:20px">All resources link to their original publishers. We list a resource as Free only when its main content is free to access.</p>`;
 }
 function certsView() {
@@ -2257,10 +2404,21 @@ const H = {
   selfcheck: (el) => { const k = el.dataset.key; S.plan.checks[k] = S.plan.checks[k] || []; S.plan.checks[k][+el.dataset.i] = el.checked; persist.plan(); },
   lib: (el) => { S.lib = el.dataset.v; render(); },
   cert: (el) => { S.certTrack = el.dataset.v; render(); },
+  "open-topic": (el) => {
+    const node = document.getElementById(el.dataset.id); if (!node) return;
+    node.open = true; node.scrollIntoView({ behavior: REDUCED ? "auto" : "smooth", block: "center" });
+  },
   "toggle-project": (el) => {
     const id = el.dataset.id, on = el.checked;
     const list = S.plan.projects || (S.plan.projects = []);
     const row = list.find((p) => p.id === id);
+    if (row) row.done = on; else list.push({ id, done: on });
+    persist.plan(); render();
+  },
+  "toggle-challenge": (el) => {
+    const id = el.dataset.id, on = el.checked;
+    const list = S.plan.challenges || (S.plan.challenges = []);
+    const row = list.find((c) => c.id === id);
     if (row) row.done = on; else list.push({ id, done: on });
     persist.plan(); render();
   },
@@ -2287,6 +2445,12 @@ document.addEventListener("click", (e) => {
   if (el && H[el.dataset.act]) H[el.dataset.act](el, e);
   if (e.target === $("#dlg")) $("#dlg").close();
 });
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  const el = e.target.closest && e.target.closest('[data-act][role="button"]');
+  if (!el) return;
+  e.preventDefault(); if (H[el.dataset.act]) H[el.dataset.act](el, e);
+});
 function onDraftEvent(e) {
   if (!e.target.closest || !e.target.closest("#plan-form")) return;
   readDraft();
@@ -2298,7 +2462,11 @@ function onDraftEvent(e) {
   if (e.target.id === "goal" || e.target.name === "level") syncSkillCheck();
   updatePreview();
 }
-document.addEventListener("input", (e) => { if (e.target.id === "q") { S.query = e.target.value; renderAppList(); return; } onDraftEvent(e); });
+document.addEventListener("input", (e) => {
+  if (e.target.id === "q") { S.query = e.target.value; renderAppList(); return; }
+  if (e.target.id === "skq") { S.skillQuery = e.target.value; const el = $("#skillsearch"); if (el) el.innerHTML = skillSearchResultsHTML(); return; }
+  onDraftEvent(e);
+});
 document.addEventListener("change", onDraftEvent);
 
 function setErrors(form, errs) {
