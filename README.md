@@ -28,7 +28,11 @@ I spent some real time on the interface itself, not just the functionality:
 
 ## Where things live
 
-Everything about you and your plan sits under the **Profile** tab: who you are, which skill you're learning, and the whole personalized roadmap (skill gaps, the day by day timeline, suggested projects, certifications). Library is for browsing lessons without committing to a schedule, and Applications is your separate job tracker.
+Everything about you and your plan sits under the **Profile** tab: who you are, which skills you're working toward, and the whole personalized roadmap (skill gaps, the day by day timeline, suggested projects, certifications). Library is for browsing lessons without committing to a schedule, and Applications is your separate job tracker.
+
+## Multiple journeys
+
+You're not locked into one role at a time. Start a plan for Cloud Engineer, then later start one for Data Engineer without losing the first. A small switcher at the top of your Profile lets you jump between them, each with its own schedule, progress, and skill assessment. If a topic name overlaps between two of your journeys, Runway shows you what carries over and what's genuinely new when you compare them.
 
 ## Accounts and your data
 

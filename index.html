@@ -336,6 +336,12 @@ dialog::backdrop{background:rgba(8,14,20,.45);backdrop-filter:blur(2px);opacity:
 .privacy svg{flex:none;margin-top:2px}
 .acct-row{display:flex;gap:14px;align-items:center;margin:16px 0 20px}
 .profilecard{margin-bottom:26px}
+.journeys{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 20px}
+.jpill{display:flex;align-items:center;gap:8px;border:1.5px solid var(--line);background:var(--card);border-radius:999px;padding:8px 14px;font-size:14px;font-weight:600;color:var(--muted);transition:all .2s var(--ease)}
+.jpill.on{border-color:var(--accent);color:var(--ink);background:var(--accent-soft)}
+.jpill .jpct{font-family:var(--mono);font-size:12px;opacity:.75}
+.jpill.jadd{border-style:dashed;color:var(--accent)}
+.transitioncard{margin-bottom:22px}
 .profilecard .acct-row img{width:54px;height:54px;border-radius:50%}
 .avatar-fallback{width:54px;height:54px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;font-family:var(--head);font-size:22px;font-weight:700;flex:none}
 .acct-row img{width:54px;height:54px;border-radius:50%}
@@ -1442,17 +1448,51 @@ function heroArt(w) {
 
 /* ================= state & backend ================= */
 const K = { plan: "runway.v3.plan", apps: "runway.v3.apps", profile: "runway.v3.profile" };
+function migratePlansShape(raw) {
+  if (!raw) return { plans: [], activeId: null };
+  if (Array.isArray(raw.plans)) return { plans: raw.plans, activeId: raw.activeId || (raw.plans[0] ? raw.plans[0].id : null) };
+  if (raw.sessions && raw.id) return { plans: [raw], activeId: raw.id };
+  return { plans: [], activeId: null };
+}
+const storedPlans = migratePlansShape(store.get(K.plan, null));
 const S = {
-  tab: "roadmap", plan: store.get(K.plan, null), apps: store.get(K.apps, store.get("runway.web.apps.v1", [])), profile: store.get(K.profile, null),
+  tab: "roadmap", plans: storedPlans.plans, activeId: storedPlans.activeId, plan: null, startingNew: false,
+  apps: store.get(K.apps, store.get("runway.web.apps.v1", [])), profile: store.get(K.profile, null),
   editing: false, sel: null, confirm: false, gate: null,
   lib: "Frontend Developer", certTrack: "Frontend Developer",
   filter: "All", query: "", flapKey: null, curWorld: null,
   bWorld: "runway", draft: null,
   authMode: "signin", authErr: "", authMsg: "",
 };
-if (S.plan) { S.plan.checks = S.plan.checks || {}; S.plan.world = S.plan.world || worldOf(S.plan.tracks && S.plan.tracks[0] ? S.plan.tracks[0].name : ""); }
+S.plan = S.plans.find((p) => p.id === S.activeId) || S.plans[0] || null;
+if (S.plan) { S.activeId = S.plan.id; S.plan.checks = S.plan.checks || {}; S.plan.world = S.plan.world || worldOf(S.plan.tracks && S.plan.tracks[0] ? S.plan.tracks[0].name : ""); }
 const newDraft = () => ({ goal: "", level: "beginner", hours: (S.profile && S.profile.hours) || 8, date: toISO(addDays(today(), 84)), days: [1, 2, 3, 4, 5, 6], assessment: {} });
 S.draft = newDraft();
+const primaryTrackName = (plan) => (plan.tracks && plan.tracks[0] ? plan.tracks[0].name : plan.inputs.goal);
+const journeyProgress = (plan) => { const total = plan.sessions.length; const done = plan.sessions.filter((s) => s.doneOn).length; return total ? Math.round((done / total) * 100) : 0; };
+function setActivePlan(p) {
+  if (!p) { S.plan = null; S.activeId = null; return; }
+  const i = S.plans.findIndex((x) => x.id === p.id);
+  if (i >= 0) S.plans[i] = p; else S.plans.push(p);
+  S.plan = p; S.activeId = p.id;
+}
+function upsertJourney(fresh) {
+  const existing = S.plans.find((p) => primaryTrackName(p) === primaryTrackName(fresh) && p.id !== fresh.id);
+  if (existing) {
+    const doneMap = {}; existing.sessions.filter((s) => s.doneOn).forEach((s) => (doneMap[s.tk + "#" + s.n] = s));
+    fresh.sessions.forEach((s) => { const o = doneMap[s.tk + "#" + s.n]; if (o) { s.doneOn = o.doneOn; s.ck = o.ck; } });
+    fresh.checks = existing.checks; fresh.createdAt = existing.createdAt; fresh.id = existing.id; fresh.projects = existing.projects;
+  }
+  setActivePlan(fresh);
+  return fresh;
+}
+function removeActiveJourney() {
+  if (!S.plan) return null;
+  const removedId = S.plan.id;
+  S.plans = S.plans.filter((p) => p.id !== removedId);
+  setActivePlan(S.plans[0] || null);
+  return removedId;
+}
 if (S.profile && S.profile.world) S.bWorld = S.profile.world;
 
 const B = { mode: "loading", db: null, user: null, dl: null, uid: null, me: null, readonly: false, q: {}, running: {}, timers: {} };
@@ -1514,14 +1554,17 @@ async function sbSaveApps() {
 async function loadFromSupabase() {
   const [profR, planR, appsR] = await Promise.all([
     SB.from("profiles").select("*").eq("user_id", B.uid).maybeSingle(),
-    SB.from("plans").select("*").eq("user_id", B.uid).maybeSingle(),
+    SB.from("plans").select("*").eq("user_id", B.uid).order("updated_at", { ascending: false }),
     SB.from("applications").select("*").eq("user_id", B.uid).order("updated_at", { ascending: false }),
   ]);
-  const prof = profR.data, plan = planR.data, apps = appsR.data;
+  const prof = profR.data, planRows = planR.data, apps = appsR.data;
   if (prof) S.profile = { name: prof.name, world: prof.world, hours: prof.hours, createdAt: prof.created_at };
   else if (S.profile) persist.profile();
-  if (plan && plan.data) { S.plan = plan.data; }
-  else if (S.plan) persist.plan();
+  if (planRows && planRows.length) {
+    S.plans = planRows.map((r) => r.data);
+    S.activeId = (prof && prof.active_plan_id && S.plans.some((p) => p.id === prof.active_plan_id)) ? prof.active_plan_id : S.plans[0].id;
+    S.plan = S.plans.find((p) => p.id === S.activeId) || S.plans[0];
+  } else if (S.plans.length) { persist.plan(); }
   if (apps) S.apps = apps.map((a) => ({ id: a.id, company: a.company, role: a.role, status: a.status, appliedOn: a.applied_on || "", followUp: a.follow_up || "", link: a.link || "", notes: a.notes || "", updatedAt: a.updated_at }));
   else if (S.apps.length) persist.apps();
   if (S.plan) { S.plan.checks = S.plan.checks || {}; S.plan.world = S.plan.world || worldOf(S.plan.tracks[0].name); }
@@ -1531,9 +1574,9 @@ async function loadFromSupabase() {
 }
 const persist = {
   plan() {
-    store.set(K.plan, S.plan);
-    if (B.mode === "cloud") cloudSave("plan", { plan: S.plan, updatedAt: Date.now() });
-    else if (B.mode === "supabase") sbUpsert("plans", { user_id: B.uid, data: S.plan, updated_at: new Date().toISOString() }, "user_id");
+    store.set(K.plan, { plans: S.plans, activeId: S.activeId });
+    if (B.mode === "cloud") cloudSave("plan", { plans: S.plans, activeId: S.activeId, updatedAt: Date.now() });
+    else if (B.mode === "supabase" && S.plan) sbUpsert("plans", { id: S.plan.id, user_id: B.uid, data: S.plan, updated_at: new Date().toISOString() }, "id");
   },
   apps() {
     store.set(K.apps, S.apps);
@@ -1543,7 +1586,11 @@ const persist = {
   profile() {
     store.set(K.profile, S.profile);
     if (B.mode === "cloud") cloudSave("profile", S.profile ? { ...S.profile } : { deleted: true });
-    else if (B.mode === "supabase" && S.profile) sbUpsert("profiles", { user_id: B.uid, name: S.profile.name, world: S.profile.world, hours: S.profile.hours, updated_at: new Date().toISOString() }, "user_id");
+    else if (B.mode === "supabase" && S.profile) sbUpsert("profiles", { user_id: B.uid, name: S.profile.name, world: S.profile.world, hours: S.profile.hours, active_plan_id: S.activeId, updated_at: new Date().toISOString() }, "user_id");
+  },
+  removePlan(id) {
+    if (B.mode === "supabase") { SB.from("plans").delete().eq("id", id).then(() => {}); }
+    persist.plan(); persist.profile();
   },
 };
 
@@ -1558,13 +1605,16 @@ async function initBackend() {
     if (!B.me || !B.me.id) throw new Error("no identity");
     B.uid = B.me.id;
     const [pS, plS, apS] = await Promise.all([ref("profile").get(), ref("plan").get(), ref("apps").get()]);
-    const cloudPlan = plS.exists ? plS.data().plan : undefined;
+    const cloudPlanData = plS.exists ? plS.data() : undefined;
     const cloudApps = apS.exists ? apS.data().items : undefined;
     const cloudProfile = pS.exists && !pS.data().deleted ? pS.data() : null;
     B.mode = "cloud";
     // Prefer the private cloud copy; if it is empty, upload anything saved locally before sign-in.
     if (cloudProfile) S.profile = cloudProfile; else if (S.profile) persist.profile();
-    if (cloudPlan) S.plan = cloudPlan; else if (S.plan && !plS.exists) persist.plan();
+    if (cloudPlanData) {
+      const shape = migratePlansShape(cloudPlanData.plans ? cloudPlanData : cloudPlanData.plan);
+      S.plans = shape.plans; S.activeId = shape.activeId; S.plan = S.plans.find((p) => p.id === S.activeId) || S.plans[0] || null;
+    } else if (S.plan && !plS.exists) persist.plan();
     if (cloudApps) S.apps = cloudApps; else if (S.apps.length && !apS.exists) persist.apps();
     if (S.plan) { S.plan.checks = S.plan.checks || {}; S.plan.world = S.plan.world || worldOf(S.plan.tracks[0].name); }
     if (!S.profile) S.gate = "signup";
@@ -1630,7 +1680,7 @@ function worldFor() {
   if (S.gate) return S.bWorld;
   if (S.tab === "library") return worldOf(S.lib);
   if (S.tab === "certs") return worldOf(S.certTrack);
-  if (S.tab === "roadmap") return S.plan && !S.editing ? S.plan.world : S.bWorld;
+  if (S.tab === "roadmap") return S.plan && !S.editing && !S.startingNew ? S.plan.world : S.bWorld;
   return S.plan ? S.plan.world : S.bWorld;
 }
 function applyWorld(w) { S.curWorld = w; document.documentElement.dataset.world = w; }
@@ -1679,7 +1729,30 @@ function profileSummaryHTML() {
     <div><b style="font-size:20px">${esc(name)}</b><div class="muted small">${statusLine}</div><div class="muted small">${roleLine}</div></div></div>
     <div class="actions" style="margin-top:16px"><button class="btn ghost sm" data-act="account">Account settings</button>${S.plan ? `<button class="btn ghost sm" data-act="edit-plan">${WORLDS[S.plan.world].L.edit}</button>` : ""}</div></section>`;
 }
-function roadmapView() { return `${profileSummaryHTML()}${!S.plan || S.editing ? builderView() : planView(S.plan)}`; }
+function journeySwitcherHTML() {
+  if (S.plans.length < 2 && !S.plan) return "";
+  if (S.plans.length < 2) return "";
+  return `<div class="journeys" role="tablist" aria-label="Your learning journeys">${S.plans.map((p) => {
+    const name = primaryTrackName(p), pct = journeyProgress(p), active = S.activeId === p.id && !S.startingNew;
+    return `<button type="button" class="jpill ${active ? "on" : ""}" role="tab" aria-selected="${active}" data-act="switch-journey" data-id="${esc(p.id)}"><span>${esc(name)}</span><span class="jpct">${pct}%</span></button>`;
+  }).join("")}<button type="button" class="jpill jadd" data-act="build-for" data-v="">+ New journey</button></div>${transitionHTML()}`;
+}
+function transitionHTML() {
+  if (S.plans.length < 2 || !S.plan) return "";
+  const other = S.plans.find((p) => p.id !== S.plan.id);
+  if (!other) return "";
+  const mine = new Set(S.plan.topics.map((t) => t.title));
+  const theirs = other.topics.map((t) => t.title);
+  const shared = theirs.filter((t) => mine.has(t));
+  const toLearn = S.plan.topics.filter((t) => !theirs.includes(t.title)).map((t) => t.title);
+  if (!shared.length && !toLearn.length) return "";
+  return `<section class="card transitioncard"><h3 style="margin-bottom:6px">Coming from ${esc(primaryTrackName(other))}</h3><p class="muted small" style="margin:0 0 12px">What carries over into ${esc(primaryTrackName(S.plan))}, based on topics that overlap between your two journeys.</p>
+  <div class="row2">
+    <div><div class="lbl" style="color:var(--good)">Already have</div><div class="chips">${shared.length ? shared.map((s) => `<span class="tag free">${esc(s)}</span>`).join("") : `<span class="muted small">No direct overlap this time, still worth the context.</span>`}</div></div>
+    <div><div class="lbl" style="color:var(--bad)">New for this role</div><div class="chips">${toLearn.slice(0, 6).map((s) => `<span class="tag">${esc(s)}</span>`).join("")}${toLearn.length > 6 ? `<span class="tag">+${toLearn.length - 6} more</span>` : ""}</div></div>
+  </div></section>`;
+}
+function roadmapView() { return `${profileSummaryHTML()}${journeySwitcherHTML()}${!S.plan || S.editing || S.startingNew ? builderView() : planView(S.plan)}`; }
 
 /* ----- builder ----- */
 function rolesHTML() {
@@ -1726,7 +1799,7 @@ function builderView() {
       <div class="chips" style="margin:-8px 0 22px">${[["4 weeks", 28], ["8 weeks", 56], ["12 weeks", 84], ["6 months", 180]].map(([l, n]) => `<button type="button" class="chip" data-act="date-in" data-n="${n}">${l}</button>`).join("")}</div>
       <div class="field"><div class="lbl" id="dys">Days you will study</div>
         <div class="chips" aria-labelledby="dys">${DAYS.map(([v, l]) => `<label class="radio-chip"><input type="checkbox" name="days" value="${v}" ${d.days.includes(v) ? "checked" : ""}><span>${l}</span></label>`).join("")}</div><div class="err" data-err="days"></div></div>
-      <div class="actions" style="margin-top:6px"><button class="btn" type="submit" id="buildbtn">${S.editing ? L.rebuild : L.build}</button>${S.editing ? `<button type="button" class="btn ghost" data-act="cancel-edit">Cancel</button>` : ""}</div>
+      <div class="actions" style="margin-top:6px"><button class="btn" type="submit" id="buildbtn">${S.editing ? L.rebuild : L.build}</button>${S.editing || (S.startingNew && S.plan) ? `<button type="button" class="btn ghost" data-act="cancel-edit">Cancel</button>` : ""}</div>
     </form></div>
     <aside class="preview" aria-live="polite"><h3>Your flight, at a glance</h3><div id="prev"></div></aside></div>`;
 }
@@ -2146,7 +2219,7 @@ function openConfirm(title, body, act, val, label) {
 const sessionById = (id) => S.plan.sessions.find((s) => s.id === id);
 const setDone = (s, on) => { s.doneOn = on ? toISO(today()) : null; };
 function startBuilder(role) {
-  S.tab = "roadmap"; S.editing = false; S.plan = null; S.sel = null; S.flapKey = null; persist.plan();
+  S.tab = "roadmap"; S.editing = false; S.startingNew = !!S.plan; S.sel = null; S.flapKey = null;
   S.bWorld = worldOf(role); S.draft = { ...newDraft(), goal: role };
   render(); window.scrollTo(0, 0);
 }
@@ -2161,11 +2234,14 @@ const H = {
   role: (el) => { const n = el.dataset.v; S.draft.goal = n; S.draft.assessment = {}; const g = $("#goal"); if (g) g.value = n; setBuilderWorld(worldOf(n)); $("#roles").innerHTML = rolesHTML(); syncSkillCheck(); updatePreview(); },
   "skill-lvl": (el) => { S.draft.assessment[el.dataset.k] = +el.dataset.lvl; syncSkillCheck(); updatePreview(); },
   "date-in": (el) => { $("#date").value = toISO(addDays(today(), +el.dataset.n)); readDraft(); updatePreview(); },
-  "cancel-edit": () => { S.editing = false; render(); },
+  "cancel-edit": () => { S.editing = false; S.startingNew = false; render(); },
   "edit-plan": () => { const i = S.plan.inputs; S.draft = { goal: i.goal, level: i.level, hours: i.hoursPerWeek, date: i.targetDate, days: [...i.studyDays], assessment: { ...(S.plan.assessment || {}) } }; S.bWorld = S.plan.world; S.editing = true; render(); window.scrollTo(0, 0); },
   "new-roadmap": () => {
     if (!S.confirm) { S.confirm = true; render(); return; }
-    S.plan = null; S.confirm = false; S.sel = null; S.flapKey = null; S.draft = newDraft(); persist.plan(); render(); window.scrollTo(0, 0);
+    const removedId = removeActiveJourney();
+    S.confirm = false; S.sel = null; S.flapKey = null; S.draft = newDraft();
+    if (removedId) persist.removePlan(removedId); else persist.plan();
+    render(); window.scrollTo(0, 0);
   },
   "pick-day": (el) => { S.sel = el.dataset.d; render(); if (matchMedia("(max-width:900px)").matches) { const d = $(".day"); if (d && d.scrollIntoView) d.scrollIntoView({ behavior: REDUCED ? "auto" : "smooth", block: "start" }); } },
   lesson: (el) => openLesson(el.dataset.tk),
@@ -2188,8 +2264,12 @@ const H = {
     if (row) row.done = on; else list.push({ id, done: on });
     persist.plan(); render();
   },
-  "build-for": (el) => { if (S.plan) openConfirm("Replace your current plan?", `You already have a plan for ${S.plan.inputs.goal}. Starting a plan for ${el.dataset.v} will replace it.`, "build-go", el.dataset.v, "Replace and continue"); else startBuilder(el.dataset.v); },
-  "build-go": (el) => { $("#dlg").close(); startBuilder(el.dataset.v); },
+  "build-for": (el) => startBuilder(el.dataset.v),
+  "switch-journey": (el) => {
+    const p = S.plans.find((x) => x.id === el.dataset.id); if (!p) return;
+    setActivePlan(p); S.bWorld = p.world; S.tab = "roadmap"; S.editing = false; S.startingNew = false; S.sel = null; S.flapKey = null;
+    persist.profile(); render(); window.scrollTo(0, 0);
+  },
   filter: (el) => { S.filter = el.dataset.v; render(); },
   "add-app": () => openAppDialog(),
   "edit-app": (el) => openAppDialog(S.apps.find((a) => a.id === el.dataset.id)),
@@ -2244,10 +2324,13 @@ document.addEventListener("submit", (e) => {
     if (S.editing && old) {
       const doneMap = {}; old.sessions.filter((s) => s.doneOn).forEach((s) => (doneMap[s.tk + "#" + s.n] = s));
       fresh.sessions.forEach((s) => { const o = doneMap[s.tk + "#" + s.n]; if (o) { s.doneOn = o.doneOn; s.ck = o.ck; } });
-      fresh.checks = old.checks; fresh.createdAt = old.createdAt;
+      fresh.checks = old.checks; fresh.createdAt = old.createdAt; fresh.id = old.id; fresh.projects = old.projects;
+      setActivePlan(fresh);
+    } else {
+      upsertJourney(fresh);
     }
-    S.plan = fresh; S.bWorld = fresh.world; S.editing = false; S.sel = null; S.flapKey = null; S.confirm = false;
-    persist.plan(); render(); window.scrollTo(0, 0);
+    S.bWorld = fresh.world; S.editing = false; S.startingNew = false; S.sel = null; S.flapKey = null; S.confirm = false;
+    persist.plan(); persist.profile(); render(); window.scrollTo(0, 0);
   }
   if (form.id === "auth-form") {
     const email = ($("#aemail").value || "").trim(), password = $("#apass").value || "";
