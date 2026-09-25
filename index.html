@@ -67,7 +67,9 @@ h4{font-size:19px;margin:26px 0 10px}
 #scene-data::after{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(10,143,146,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(10,143,146,.06) 1px,transparent 1px);background-size:160px 160px;mask-image:linear-gradient(180deg,#000,transparent 85%);-webkit-mask-image:linear-gradient(180deg,#000,transparent 85%)}
 
 /* ---------- header: frosted glass material ---------- */
-.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:8;background:var(--glass);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border-bottom:1px solid var(--line)}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:8;background:var(--glass);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border-bottom:1px solid var(--line);box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
+:root[data-theme="dark"] .top{box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .top{box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}}
 .top .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:9px;font-family:var(--head);font-size:22px;font-weight:700;padding:10px 0;letter-spacing:-.02em}
 .brand svg{flex:none}
@@ -179,7 +181,7 @@ textarea{min-height:88px;resize:vertical}
 .alt-scale{position:absolute;left:44px;top:0;bottom:0;width:14px;border-radius:10px;background:linear-gradient(0deg,#6FD3A0,#7FC0F5 30%,#3E85F0 70%,#1B3D91)}
 .alt-tick{position:absolute;left:66px;font-size:11.5px;color:var(--muted);transform:translateY(50%);font-weight:600}
 .alt-tick::before{content:"";position:absolute;left:-22px;top:50%;width:14px;height:1.5px;background:var(--muted);opacity:.5}
-.plane{position:absolute;left:14px;bottom:0;width:74px;transform:translateY(50%);transition:bottom 1.8s var(--ease);filter:drop-shadow(0 8px 10px rgba(20,60,130,.25))}
+.plane{position:absolute;left:14px;bottom:0;width:74px;transform:translateY(50%);transition:transform 1.4s var(--ease);filter:drop-shadow(0 8px 10px rgba(20,60,130,.25));will-change:transform}
 .alt-read{position:absolute;right:0;bottom:-12px;font-family:var(--head);font-size:20px;color:var(--accent);font-weight:650}
 .deck .btn.ghost{background:transparent;border-color:var(--accent);color:var(--accent)}
 
@@ -280,8 +282,13 @@ ul.ideas.plain li::before{content:"";position:absolute;left:4px;top:.65em;width:
 .lnk{background:none;border:0;padding:0;color:var(--accent);font-weight:600;font-size:14.5px;text-decoration:none}
 
 /* ---------- dialogs, gate, splash ---------- */
-dialog{border:0;border-radius:var(--r-card);padding:0;max-width:640px;width:calc(100% - 24px);max-height:92vh;background:var(--glass);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);color:var(--ink);overflow:auto;box-shadow:0 24px 60px -20px rgba(0,0,0,.35)}
-dialog::backdrop{background:rgba(8,14,20,.45);backdrop-filter:blur(2px)}
+dialog{border:0;border-radius:var(--r-card);padding:0;max-width:640px;width:calc(100% - 24px);max-height:92vh;background:var(--glass);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);color:var(--ink);overflow:auto;box-shadow:0 24px 60px -20px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.4);opacity:1;transform:scale(1);transition:opacity .28s var(--ease),transform .28s var(--ease),display .28s allow-discrete,overlay .28s allow-discrete}
+:root[data-theme="dark"] dialog{box-shadow:0 24px 60px -20px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.06)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) dialog{box-shadow:0 24px 60px -20px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.06)}}
+@starting-style{dialog[open]{opacity:0;transform:scale(.96)}}
+dialog:not([open]){opacity:0;transform:scale(.96);pointer-events:none}
+dialog::backdrop{background:rgba(8,14,20,.45);backdrop-filter:blur(2px);opacity:1;transition:opacity .28s var(--ease),display .28s allow-discrete,overlay .28s allow-discrete}
+@starting-style{dialog[open]::backdrop{opacity:0}}
 .dlg{padding:24px 26px calc(30px + env(safe-area-inset-bottom,0px))}
 .dlg-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px}
 .x{background:var(--line);border:0;color:var(--muted);font-size:13px;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center}
@@ -300,7 +307,9 @@ dialog::backdrop{background:rgba(8,14,20,.45);backdrop-filter:blur(2px)}
 #splash b{font-family:var(--head);font-size:30px;letter-spacing:-.02em}
 
 /* ---------- world-specific personality (color, materials and motion differ; type and shape language stay consistent for a refined, unified feel) ---------- */
-:root[data-world="cloud"] .card,:root[data-world="cloud"] .portal,:root[data-world="cloud"] .rt,:root[data-world="cloud"] details.tp{backdrop-filter:blur(16px) saturate(160%);-webkit-backdrop-filter:blur(16px) saturate(160%)}
+:root[data-world="cloud"] .card,:root[data-world="cloud"] .portal,:root[data-world="cloud"] .rt,:root[data-world="cloud"] details.tp{backdrop-filter:blur(16px) saturate(160%);-webkit-backdrop-filter:blur(16px) saturate(160%);box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.6)}
+:root[data-theme="dark"][data-world="cloud"] .card,:root[data-theme="dark"][data-world="cloud"] .portal,:root[data-theme="dark"][data-world="cloud"] .rt,:root[data-theme="dark"][data-world="cloud"] details.tp{box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.06)}
+@media (prefers-color-scheme:dark){:root[data-world="cloud"]:not([data-theme="light"]) .card,:root[data-world="cloud"]:not([data-theme="light"]) .portal,:root[data-world="cloud"]:not([data-theme="light"]) .rt,:root[data-world="cloud"]:not([data-theme="light"]) details.tp{box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.06)}}
 :root[data-world="cloud"] .rw{background:var(--card);border-radius:var(--r-card);padding:20px 16px 16px;box-shadow:var(--shadow)}
 :root[data-world="cloud"] .lt{background:var(--paper)}
 :root[data-world="cloud"] .lt[data-s=done]{background:var(--good);border-color:var(--good);box-shadow:0 0 0 3px var(--good-soft)}
@@ -360,6 +369,17 @@ dialog::backdrop{background:rgba(8,14,20,.45);backdrop-filter:blur(2px)}
   :root[data-world="data"] .day.isdone::after{position:static;display:block;margin-top:10px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}.plane{transition:none!important}}
+@media (prefers-reduced-transparency:reduce){
+  .top{background:var(--paper);backdrop-filter:none;-webkit-backdrop-filter:none}
+  dialog{background:var(--paper);backdrop-filter:none;-webkit-backdrop-filter:none}
+  :root[data-world="cloud"] .card,:root[data-world="cloud"] .portal,:root[data-world="cloud"] .rt,:root[data-world="cloud"] details.tp{background:var(--card);backdrop-filter:none;-webkit-backdrop-filter:none}
+}
+@media (prefers-contrast:more){
+  :root{--line:currentColor}
+  .card,.portal,.rt,details.tp,.role,.chip,.radio-chip span,input[type=text],input[type=number],input[type=date],input[type=url],input[type=search],textarea{border-width:1.5px}
+  .btn{border-width:1.5px;border-color:var(--ink)}
+  .btn.ghost{border-color:var(--ink)}
+}
 
 .still,.still *{animation:none!important}
 
@@ -1308,9 +1328,9 @@ function streakOf(plan) {
 /* ================= worlds ================= */
 const PLANE = `<svg viewBox="-4 -18 72 56" aria-hidden="true"><g transform="rotate(-14 30 10)"><path d="M0 10Q0 5 7 5L46 5Q58 5 62 10Q58 15 46 15L7 15Q0 15 0 10Z" fill="#fff" stroke="#9DBBE8" stroke-width="1.2"/><path d="M22 6L34 -14L41 -14L35 6Z" fill="#DCEBFF" stroke="#9DBBE8" stroke-width="1"/><path d="M22 14L34 34L41 34L35 14Z" fill="#DCEBFF" stroke="#9DBBE8" stroke-width="1"/><path d="M4 6L1 -4L8 -4L13 6Z" fill="#fff" stroke="#9DBBE8" stroke-width="1"/></g></svg>`;
 const ICONS = {
-  runway: `<svg width="26" height="28" viewBox="0 0 26 28" aria-hidden="true"><rect x="11" y="1" width="4" height="6" rx="1.5" fill="#FFC24B"/><rect x="9.5" y="10" width="7" height="7" rx="1.5" fill="#FFC24B" opacity=".8"/><rect x="7" y="20" width="12" height="7" rx="1.5" fill="#FFC24B" opacity=".6"/></svg>`,
-  cloud: `<svg width="34" height="24" viewBox="0 0 200 100" aria-hidden="true" style="color:var(--accent)"><use href="#cloudshape"/></svg>`,
-  data: `<svg width="28" height="26" viewBox="0 0 28 26" aria-hidden="true"><rect x="2" y="14" width="5" height="10" fill="var(--accent)" opacity=".5"/><rect x="10" y="8" width="5" height="16" fill="var(--accent)" opacity=".75"/><rect x="18" y="3" width="5" height="21" fill="var(--accent)"/><path d="M2 10L11 5L19 9L26 1" stroke="var(--hi)" stroke-width="2" fill="none"/></svg>`,
+  runway: `<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13"/><path d="M6 9l6-6 6 6"/><path d="M6 20h12"/></svg>`,
+  cloud: `<svg width="26" height="20" viewBox="0 0 26 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><path d="M7.5 15.5h11a4 4 0 0 0 .6-7.95 5.5 5.5 0 0 0-10.6-1.9A4.5 4.5 0 0 0 7.5 15.5Z"/></svg>`,
+  data: `<svg width="24" height="22" viewBox="0 0 24 22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19V13"/><path d="M10 19V7"/><path d="M17 19V3"/><path d="M3 9l7-4 7 4 5-3" stroke-opacity=".55"/></svg>`,
 };
 const WORLDS = {
   runway: { name: "Build & design", blurb: "Web, mobile, product, design and security.", L: {
@@ -1327,9 +1347,9 @@ const WORLDS = {
     ontime: "on_track", late: (d) => `delayed_${d}d`, done: "complete", build: "Run my plan", rebuild: "Re-run my plan", edit: "Change date, hours or days", fresh: "Start a new plan" } },
 };
 const PORTAL_ART = {
-  runway: `<svg viewBox="0 0 200 64" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><path d="M60 62L92 4H108L140 62Z" fill="#131A44" opacity=".9"/><path d="M100 8V60" stroke="#FFC24B" stroke-width="2" stroke-dasharray="5 5"/>${[0,1,2,3,4].map((i)=>`<circle cx="${88-i*8}" cy="${10+i*12}" r="${1.5+i*.5}" fill="#FFC24B"/><circle cx="${112+i*8}" cy="${10+i*12}" r="${1.5+i*.5}" fill="#FFC24B"/>`).join("")}</svg>`,
-  cloud: `<svg viewBox="0 0 200 64" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="200" height="64" fill="#9FCBFF"/><g fill="#fff"><circle cx="60" cy="40" r="14"/><circle cx="80" cy="32" r="18"/><circle cx="102" cy="40" r="14"/><rect x="46" y="40" width="70" height="14" rx="7"/><circle cx="150" cy="24" r="8"/><circle cx="162" cy="20" r="10"/><rect x="142" y="24" width="34" height="10" rx="5"/></g><circle cx="176" cy="12" r="7" fill="#FFD873"/></svg>`,
-  data: `<svg viewBox="0 0 200 64" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="200" height="64" fill="#EAF6F7"/><g fill="#0E7C86"><rect x="24" y="38" width="16" height="22" opacity=".45"/><rect x="50" y="28" width="16" height="32" opacity=".6"/><rect x="76" y="34" width="16" height="26" opacity=".75"/><rect x="102" y="18" width="16" height="42"/><rect x="128" y="24" width="16" height="36" opacity=".85"/></g><path d="M20 44L58 30L86 36L112 14L140 22L180 6" stroke="#F28C28" stroke-width="2.5" fill="none"/></svg>`,
+  runway: `<svg viewBox="0 0 200 64" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="200" height="64" fill="#EDEDFB"/><g fill="none" stroke="#5856D6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M100 12v40"/><path d="M84 28l16-16 16 16"/><path d="M74 52h52"/></g></svg>`,
+  cloud: `<svg viewBox="0 0 200 64" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="200" height="64" fill="#E4F0FF"/><g fill="none" stroke="#007AFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M62 44h84a15 15 0 0 0 2-29.8A20.5 20.5 0 0 0 108 7a17 17 0 0 0-32 6A17 17 0 0 0 62 44Z"/></g></svg>`,
+  data: `<svg viewBox="0 0 200 64" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="200" height="64" fill="#DEF3F3"/><g fill="none" stroke="#0A8F92" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M64 50V36"/><path d="M92 50V22"/><path d="M120 50V10"/><path d="M64 26l28-12 28 12 20-10" stroke-opacity=".55"/></g></svg>`,
 };
 function heroArt(w) {
   if (w === "cloud") {
@@ -1828,9 +1848,13 @@ function runHero() {
   });
   const plane = document.querySelector(".plane[data-p]");
   if (plane) {
-    const p = +plane.dataset.p, target = `${(p * 100).toFixed(2)}%`;
-    if (plane.dataset.still === "1" || REDUCED) { plane.style.transition = "none"; plane.style.bottom = target; }
-    else requestAnimationFrame(() => requestAnimationFrame(() => { plane.style.bottom = target; }));
+    const p = +plane.dataset.p;
+    const track = plane.closest(".alt");
+    const trackH = track ? track.getBoundingClientRect().height : 230;
+    const liftPx = p * trackH;
+    const target = `translateY(50%) translateY(-${liftPx.toFixed(1)}px)`;
+    if (plane.dataset.still === "1" || REDUCED) { plane.style.transition = "none"; plane.style.transform = target; }
+    else requestAnimationFrame(() => requestAnimationFrame(() => { plane.style.transform = target; }));
   }
   const k = document.querySelector("[data-key]");
   if (k) S.flapKey = k.dataset.key;

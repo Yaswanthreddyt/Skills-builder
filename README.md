@@ -13,6 +13,15 @@ Pick a role like Cloud Engineer, Data Analyst, or Frontend Developer, tell it ho
 - Tracks your job applications too: company, role, status, follow up dates
 - The whole site changes its look depending on which world you're in. Cloud roles get a sky and flight theme, data roles get a console/notebook theme, everything else gets an airport departure board theme. It's a small thing but it makes the site feel less like a spreadsheet
 
+## Design details
+
+I spent some real time on the interface itself, not just the functionality:
+
+- Frosted glass header and dialogs, with a subtle highlight along the top edge so they read as an actual translucent material rather than a flat panel
+- Motion runs on `transform` and `opacity` wherever possible so it stays smooth even on modest hardware, and it respects `prefers-reduced-motion`, `prefers-reduced-transparency`, and `prefers-contrast` if your system has any of those turned on
+- Type uses tighter letter spacing on big headings and normal spacing on body text, which is a small detail but it's the kind of thing that makes text feel considered instead of just dumped on the page
+- The icons are minimal, single color, line based artwork drawn specifically for this project
+
 ## Accounts and your data
 
 This version runs with its own login (email and password) and its own database, so your plan and progress follow you across devices instead of living in one browser. Nobody else can see your data, not even whoever's running the site. If you'd rather not sign up, it still works fine, your progress just stays in that one browser instead of syncing anywhere.
